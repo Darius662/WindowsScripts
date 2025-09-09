@@ -35,6 +35,7 @@ This script imports permissions from a CSV file (created by the export script) a
 - `-CsvFile`: The path to the CSV file containing the permissions
 - `-TargetBasePath`: The base path where the folders are located on the target system
 - `-WhatIf` (optional): If specified, shows what would happen without actually applying the permissions
+- `-UseLocalPrincipals` (optional): If specified (default: $true), the script will use local security principals on the target computer instead of trying to use the exact security principals from the source computer
 
 ## Example Workflow
 
@@ -59,3 +60,8 @@ This script imports permissions from a CSV file (created by the export script) a
 - The scripts handle permissions at the folder level only, not for files
 - The export script captures the parent folder and its immediate subfolders only (not recursive)
 - The import script maps permissions based on folder names, so the folder structure should be similar between source and target
+- Security principals (users/groups) are handled as follows:
+  - By default, the import script uses local security principals on the target computer
+  - For example, if the source has "DOMAIN1\Group1", the script will apply "TARGETCOMPUTER\Group1" on the target
+  - Well-known accounts like "Everyone", "SYSTEM", "Administrators", etc. are preserved as-is
+  - You can disable this behavior with `-UseLocalPrincipals:$false` to attempt using the exact security principals from the source

@@ -10,7 +10,10 @@ param (
     [string]$TargetBasePath,
     
     [Parameter(Mandatory=$false)]
-    [switch]$WhatIf = $false
+    [switch]$WhatIf = $false,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$UseLocalPrincipals = $true
 )
 
 # Check if the CSV file exists
@@ -25,6 +28,22 @@ if (-not (Test-Path -Path $TargetBasePath)) {
     exit 1
 }
 
+# Function to extract account name from identity reference
+function Get-AccountNameFromIdentityReference {
+    param (
+        [string]$IdentityReference
+    )
+    
+    # Check if the identity reference contains a domain or computer name
+    if ($IdentityReference -match '\\') {
+        # Extract just the account name (after the backslash)
+        return $IdentityReference.Split('\')[-1]
+    }
+    
+    # If no domain/computer prefix, return as is
+    return $IdentityReference
+}
+
 # Function to apply permissions to a folder
 function Set-FolderPermission {
     param (
@@ -36,7 +55,8 @@ function Set-FolderPermission {
         [bool]$IsInherited,
         [string]$InheritanceFlags,
         [string]$PropagationFlags,
-        [bool]$WhatIf
+        [bool]$WhatIf,
+        [bool]$UseLocalPrincipals
     )
     
     # Determine the relative path from the original base path
@@ -64,8 +84,29 @@ function Set-FolderPermission {
         $inheritanceFlags = [System.Security.AccessControl.InheritanceFlags]$InheritanceFlags
         $propagationFlags = [System.Security.AccessControl.PropagationFlags]$PropagationFlags
         
+        # Determine the identity reference to use
+        $identityToUse = $IdentityReference
+        
+        if ($UseLocalPrincipals) {
+            # Extract just the account name without domain
+            $accountName = Get-AccountNameFromIdentityReference -IdentityReference $IdentityReference
+            
+            # For well-known SIDs like 'Everyone', 'SYSTEM', etc., use them as is
+            $wellKnownAccounts = @('Everyone', 'SYSTEM', 'Administrators', 'Users', 'Authenticated Users')
+            
+            if ($wellKnownAccounts -contains $accountName) {
+                # Use the account name directly for well-known accounts
+                $identityToUse = $accountName
+            } else {
+                # For other accounts, use the local computer name with the account
+                $computerName = $env:COMPUTERNAME
+                $identityToUse = "$computerName\$accountName"
+            }
+        }
+        
+        # Create the access rule with the appropriate identity
         $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-            $IdentityReference,
+            $identityToUse,
             $fileSystemRights,
             $inheritanceFlags,
             $propagationFlags,
@@ -73,7 +114,11 @@ function Set-FolderPermission {
         )
         
         if ($WhatIf) {
-            Write-Host "WhatIf: Would apply permission to $targetPath for $IdentityReference"
+            if ($UseLocalPrincipals -and ($identityToUse -ne $IdentityReference)) {
+                Write-Host "WhatIf: Would apply permission to $targetPath for $identityToUse (original: $IdentityReference)"
+            } else {
+                Write-Host "WhatIf: Would apply permission to $targetPath for $identityToUse"
+            }
         } else {
             # Get the current ACL
             $acl = Get-Acl -Path $targetPath
@@ -84,7 +129,11 @@ function Set-FolderPermission {
             # Apply the ACL to the folder
             Set-Acl -Path $targetPath -AclObject $acl
             
-            Write-Host "Applied permission to $targetPath for $IdentityReference"
+            if ($UseLocalPrincipals -and ($identityToUse -ne $IdentityReference)) {
+                Write-Host "Applied permission to $targetPath for $identityToUse (original: $IdentityReference)"
+            } else {
+                Write-Host "Applied permission to $targetPath for $identityToUse"
+            }
         }
     }
     catch {
@@ -111,7 +160,8 @@ try {
             -IsInherited ([System.Convert]::ToBoolean($permission.IsInherited)) `
             -InheritanceFlags $permission.InheritanceFlags `
             -PropagationFlags $permission.PropagationFlags `
-            -WhatIf $WhatIf
+            -WhatIf $WhatIf `
+            -UseLocalPrincipals $UseLocalPrincipals
     }
     
     Write-Host "Permission import completed."
