@@ -37,6 +37,7 @@ This script imports permissions from a CSV file (created by the export script) a
 - `-WhatIf`: If specified, shows what would happen without actually applying the permissions
 - `-UseLocalPrincipals`: If specified, the script will use local security principals on the target computer instead of trying to use the exact security principals from the source computer (enabled by default)
 - `-SkipSIDs`: If specified, the script will skip any permissions with SIDs (Security Identifiers) that typically come from deleted or legacy accounts (enabled by default)
+- `-SkipUsers`: If specified, the script will skip individual user accounts and only apply group permissions (enabled by default)
 
 ## Example Workflow
 
@@ -52,11 +53,17 @@ This script imports permissions from a CSV file (created by the export script) a
    # First, test with WhatIf to see what would happen
    .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -WhatIf
    
-   # Then apply the permissions (skips SIDs by default)
+   # Then apply the permissions (skips SIDs and user accounts by default)
    .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects"
    
    # If you want to include SIDs (not recommended for legacy SIDs)
    .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -SkipSIDs:$false
+   
+   # If you want to include individual user accounts
+   .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -SkipUsers:$false
+   
+   # If you want to include both SIDs and user accounts
+   .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -SkipSIDs:$false -SkipUsers:$false
    ```
 
 ## Notes
@@ -74,3 +81,12 @@ This script imports permissions from a CSV file (created by the export script) a
   - These typically appear when accounts or groups that previously had permissions no longer exist
   - The script will display a yellow message when skipping a SID
   - If you need to include these legacy SIDs for some reason, use `-SkipSIDs:$false`
+- User account handling:
+  - Individual user accounts are skipped by default, focusing only on group permissions
+  - This helps maintain a cleaner permission structure on the target system
+  - The script uses heuristics to identify user accounts vs. groups (naming patterns, etc.)
+  - If you need to include individual user permissions, use `-SkipUsers:$false`
+- Error handling:
+  - The script gracefully handles unmappable identity references (accounts/groups that don't exist on the target system)
+  - When an identity can't be mapped, the script will display a yellow warning message and continue processing other permissions
+  - This prevents the script from failing when encountering invalid or non-existent accounts

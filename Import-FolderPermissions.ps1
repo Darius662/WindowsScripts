@@ -16,7 +16,10 @@ param (
     [switch]$UseLocalPrincipals,
     
     [Parameter(Mandatory=$false)]
-    [switch]$SkipSIDs
+    [switch]$SkipSIDs,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$SkipUsers
 )
 
 # Set default values for switch parameters
@@ -26,6 +29,10 @@ if (-not $PSBoundParameters.ContainsKey('UseLocalPrincipals')) {
 
 if (-not $PSBoundParameters.ContainsKey('SkipSIDs')) {
     $SkipSIDs = $true
+}
+
+if (-not $PSBoundParameters.ContainsKey('SkipUsers')) {
+    $SkipUsers = $true
 }
 
 # Check if the CSV file exists
@@ -48,6 +55,48 @@ function Test-IsSID {
     
     # SID pattern: S-1-5-... (Security Identifier pattern)
     return $IdentityReference -match '^S-\d+-\d+(-\d+)*$'
+}
+
+# Function to check if an identity reference is a user account (not a group)
+function Test-IsUserAccount {
+    param (
+        [string]$IdentityReference
+    )
+    
+    # Skip if it's a SID
+    if (Test-IsSID -IdentityReference $IdentityReference) {
+        return $false
+    }
+    
+    # Extract account name
+    $accountName = Get-AccountNameFromIdentityReference -IdentityReference $IdentityReference
+    
+    # Well-known groups that should not be skipped
+    $wellKnownGroups = @('Everyone', 'SYSTEM', 'Administrators', 'Users', 'Authenticated Users', 'Domain Users', 'Domain Admins')
+    
+    # If it's a well-known group, it's not a user account
+    if ($wellKnownGroups -contains $accountName) {
+        return $false
+    }
+    
+    # Try to determine if it's a user or group based on naming convention
+    # This is a heuristic approach and may not be 100% accurate
+    # Users often have patterns like firstname.lastname or individual names
+    # Groups often have patterns like GRP_, G_, Role_, etc.
+    
+    # Check for common group prefixes
+    if ($accountName -match '^(GRP_|G_|Role_|Group_|Team_|Dept_|Department_|Admin_|Admins_)') {
+        return $false  # Likely a group
+    }
+    
+    # If it contains a dot, it's likely a user (firstname.lastname pattern)
+    if ($accountName -match '\.') {
+        return $true
+    }
+    
+    # Default to assuming it's a user if we can't determine otherwise
+    # This is a conservative approach - better to skip than to apply incorrectly
+    return $true
 }
 
 # Function to extract account name from identity reference
@@ -84,7 +133,8 @@ function Set-FolderPermission {
         [string]$PropagationFlags,
         [bool]$WhatIf,
         [bool]$UseLocalPrincipals,
-        [bool]$SkipSIDs
+        [bool]$SkipSIDs,
+        [bool]$SkipUsers
     )
     
     # Determine the relative path from the original base path
@@ -108,6 +158,12 @@ function Set-FolderPermission {
     # Check if the identity reference is a SID and skip if requested
     if ($SkipSIDs -and (Test-IsSID -IdentityReference $IdentityReference)) {
         Write-Host "Skipping SID: $IdentityReference for folder: $targetPath" -ForegroundColor Yellow
+        return
+    }
+    
+    # Check if the identity reference is a user account and skip if requested
+    if ($SkipUsers -and (Test-IsUserAccount -IdentityReference $IdentityReference)) {
+        Write-Host "Skipping user account: $IdentityReference for folder: $targetPath" -ForegroundColor Yellow
         return
     }
     
@@ -138,14 +194,24 @@ function Set-FolderPermission {
             }
         }
         
-        # Create the access rule with the appropriate identity
-        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-            $identityToUse,
-            $fileSystemRights,
-            $inheritanceFlags,
-            $propagationFlags,
-            $accessControlType
-        )
+        # Try to create the access rule with the appropriate identity
+        try {
+            $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $identityToUse,
+                $fileSystemRights,
+                $inheritanceFlags,
+                $propagationFlags,
+                $accessControlType
+            )
+        }
+        catch [System.Security.Principal.IdentityNotMappedException] {
+            Write-Host "Skipping unmappable identity: $identityToUse (original: $IdentityReference) for folder: $targetPath" -ForegroundColor Yellow
+            return
+        }
+        catch {
+            Write-Warning "Error creating access rule for $identityToUse (original: $IdentityReference): $_"
+            return
+        }
         
         if ($WhatIf) {
             if ($UseLocalPrincipals -and ($identityToUse -ne $IdentityReference)) {
@@ -154,24 +220,34 @@ function Set-FolderPermission {
                 Write-Host "WhatIf: Would apply permission to $targetPath for $identityToUse"
             }
         } else {
-            # Get the current ACL
-            $acl = Get-Acl -Path $targetPath
-            
-            # Add the new rule
-            $acl.AddAccessRule($accessRule)
-            
-            # Apply the ACL to the folder
-            Set-Acl -Path $targetPath -AclObject $acl
-            
-            if ($UseLocalPrincipals -and ($identityToUse -ne $IdentityReference)) {
-                Write-Host "Applied permission to $targetPath for $identityToUse (original: $IdentityReference)"
-            } else {
-                Write-Host "Applied permission to $targetPath for $identityToUse"
+            try {
+                # Get the current ACL
+                $acl = Get-Acl -Path $targetPath
+                
+                # Add the new rule
+                $acl.AddAccessRule($accessRule)
+                
+                # Apply the ACL to the folder
+                Set-Acl -Path $targetPath -AclObject $acl
+                
+                if ($UseLocalPrincipals -and ($identityToUse -ne $IdentityReference)) {
+                    Write-Host "Applied permission to $targetPath for $identityToUse (original: $IdentityReference)"
+                } else {
+                    Write-Host "Applied permission to $targetPath for $identityToUse"
+                }
+            }
+            catch [System.Security.Principal.IdentityNotMappedException] {
+                Write-Host "Cannot apply permission: Identity '$identityToUse' could not be mapped on this system for folder: $targetPath" -ForegroundColor Yellow
+            }
+            catch {
+                $errorMessage = $_.Exception.Message
+                Write-Error "Error applying permission to $targetPath : $errorMessage"
             }
         }
     }
     catch {
-        Write-Error "Error applying permission to $targetPath : $_"
+        $errorMessage = $_.Exception.Message
+        Write-Error "Error applying permission to $targetPath : $errorMessage"
     }
 }
 
@@ -196,7 +272,8 @@ try {
             -PropagationFlags $permission.PropagationFlags `
             -WhatIf $WhatIf `
             -UseLocalPrincipals $UseLocalPrincipals `
-            -SkipSIDs $SkipSIDs
+            -SkipSIDs $SkipSIDs `
+            -SkipUsers $SkipUsers
     }
     
     Write-Host "Permission import completed."
