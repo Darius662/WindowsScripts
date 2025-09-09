@@ -10,11 +10,23 @@ param (
     [string]$TargetBasePath,
     
     [Parameter(Mandatory=$false)]
-    [switch]$WhatIf = $false,
+    [switch]$WhatIf,
     
     [Parameter(Mandatory=$false)]
-    [switch]$UseLocalPrincipals = $true
+    [switch]$UseLocalPrincipals,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$SkipSIDs
 )
+
+# Set default values for switch parameters
+if (-not $PSBoundParameters.ContainsKey('UseLocalPrincipals')) {
+    $UseLocalPrincipals = $true
+}
+
+if (-not $PSBoundParameters.ContainsKey('SkipSIDs')) {
+    $SkipSIDs = $true
+}
 
 # Check if the CSV file exists
 if (-not (Test-Path -Path $CsvFile)) {
@@ -28,16 +40,31 @@ if (-not (Test-Path -Path $TargetBasePath)) {
     exit 1
 }
 
+# Function to check if a string is a SID
+function Test-IsSID {
+    param (
+        [string]$IdentityReference
+    )
+    
+    # SID pattern: S-1-5-... (Security Identifier pattern)
+    return $IdentityReference -match '^S-\d+-\d+(-\d+)*$'
+}
+
 # Function to extract account name from identity reference
 function Get-AccountNameFromIdentityReference {
     param (
         [string]$IdentityReference
     )
     
+    # Check if the identity reference is a SID
+    if (Test-IsSID -IdentityReference $IdentityReference) {
+        return $IdentityReference
+    }
+    
     # Check if the identity reference contains a domain or computer name
     if ($IdentityReference -match '\\') {
         # Extract just the account name (after the backslash)
-        return $IdentityReference.Split('\')[-1]
+        return $IdentityReference.Split('\\')[-1]
     }
     
     # If no domain/computer prefix, return as is
@@ -56,7 +83,8 @@ function Set-FolderPermission {
         [string]$InheritanceFlags,
         [string]$PropagationFlags,
         [bool]$WhatIf,
-        [bool]$UseLocalPrincipals
+        [bool]$UseLocalPrincipals,
+        [bool]$SkipSIDs
     )
     
     # Determine the relative path from the original base path
@@ -74,6 +102,12 @@ function Set-FolderPermission {
     # Check if the target folder exists
     if (-not (Test-Path -Path $targetPath)) {
         Write-Warning "Target folder does not exist: $targetPath"
+        return
+    }
+    
+    # Check if the identity reference is a SID and skip if requested
+    if ($SkipSIDs -and (Test-IsSID -IdentityReference $IdentityReference)) {
+        Write-Host "Skipping SID: $IdentityReference for folder: $targetPath" -ForegroundColor Yellow
         return
     }
     
@@ -161,7 +195,8 @@ try {
             -InheritanceFlags $permission.InheritanceFlags `
             -PropagationFlags $permission.PropagationFlags `
             -WhatIf $WhatIf `
-            -UseLocalPrincipals $UseLocalPrincipals
+            -UseLocalPrincipals $UseLocalPrincipals `
+            -SkipSIDs $SkipSIDs
     }
     
     Write-Host "Permission import completed."

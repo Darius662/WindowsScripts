@@ -34,8 +34,9 @@ This script imports permissions from a CSV file (created by the export script) a
 
 - `-CsvFile`: The path to the CSV file containing the permissions
 - `-TargetBasePath`: The base path where the folders are located on the target system
-- `-WhatIf` (optional): If specified, shows what would happen without actually applying the permissions
-- `-UseLocalPrincipals` (optional): If specified (default: $true), the script will use local security principals on the target computer instead of trying to use the exact security principals from the source computer
+- `-WhatIf`: If specified, shows what would happen without actually applying the permissions
+- `-UseLocalPrincipals`: If specified, the script will use local security principals on the target computer instead of trying to use the exact security principals from the source computer (enabled by default)
+- `-SkipSIDs`: If specified, the script will skip any permissions with SIDs (Security Identifiers) that typically come from deleted or legacy accounts (enabled by default)
 
 ## Example Workflow
 
@@ -51,8 +52,11 @@ This script imports permissions from a CSV file (created by the export script) a
    # First, test with WhatIf to see what would happen
    .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -WhatIf
    
-   # Then apply the permissions
+   # Then apply the permissions (skips SIDs by default)
    .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects"
+   
+   # If you want to include SIDs (not recommended for legacy SIDs)
+   .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -SkipSIDs:$false
    ```
 
 ## Notes
@@ -65,3 +69,8 @@ This script imports permissions from a CSV file (created by the export script) a
   - For example, if the source has "DOMAIN1\Group1", the script will apply "TARGETCOMPUTER\Group1" on the target
   - Well-known accounts like "Everyone", "SYSTEM", "Administrators", etc. are preserved as-is
   - You can disable this behavior with `-UseLocalPrincipals:$false` to attempt using the exact security principals from the source
+- SID handling:
+  - Security Identifiers (SIDs) from old/deleted accounts are skipped by default
+  - These typically appear when accounts or groups that previously had permissions no longer exist
+  - The script will display a yellow message when skipping a SID
+  - If you need to include these legacy SIDs for some reason, use `-SkipSIDs:$false`
