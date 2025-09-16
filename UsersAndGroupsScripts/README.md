@@ -44,19 +44,21 @@ Copy the generated CSV file to the target computer.
 
 ```powershell
 # Run as Administrator
-.\Import-UsersAndGroups.ps1 -InputPath "C:\Migration\users.csv" -DefaultPassword "TempPass123!"
+$SecurePass = ConvertTo-SecureString "TempPass123!" -AsPlainText -Force
+.\Import-UsersAndGroups.ps1 -InputPath "C:\Migration\users.csv" -DefaultPassword $SecurePass
 ```
 
 **Parameters:**
 - `-InputPath` (required): Path to the CSV file created by the export script
-- `-DefaultPassword` (optional): Password for imported users. If not specified, a random password is generated
+- `-DefaultPassword` (optional): SecureString password for imported users. If not specified, a random password is generated
 - `-SkipExisting` (optional): Skip existing users/groups instead of updating them
 - `-LogPath` (optional): Path for the import log file. Default: `.\ImportLog.txt`
 
 **Examples:**
 ```powershell
 # Basic import with custom password
-.\Import-UsersAndGroups.ps1 -InputPath "users.csv" -DefaultPassword "SecurePass2024!"
+$SecurePass = ConvertTo-SecureString "SecurePass2024!" -AsPlainText -Force
+.\Import-UsersAndGroups.ps1 -InputPath "users.csv" -DefaultPassword $SecurePass
 
 # Import with random password generation
 .\Import-UsersAndGroups.ps1 -InputPath "users.csv"
@@ -142,7 +144,8 @@ After import, verify:
 # Copy company-users.csv to target computer
 
 # On target computer (as Administrator)
-.\Import-UsersAndGroups.ps1 -InputPath "C:\Migration\company-users.csv" -DefaultPassword "TempPass2024!"
+$SecurePass = ConvertTo-SecureString "TempPass2024!" -AsPlainText -Force
+.\Import-UsersAndGroups.ps1 -InputPath "C:\Migration\company-users.csv" -DefaultPassword $SecurePass
 
 # Verify import
 Get-LocalUser

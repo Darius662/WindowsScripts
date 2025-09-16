@@ -68,7 +68,6 @@ try {
             UserMayChangePassword = Get-SafeUserProperty $User "UserMayChangePassword"
             PasswordLastSet = Get-SafeUserProperty $User "PasswordLastSet"
             LastLogon = Get-SafeUserProperty $User "LastLogon"
-            SID = $User.SID.Value
             GroupMembership = ""
             GroupDescription = ""
             GroupMembers = ""
@@ -103,7 +102,6 @@ try {
             UserMayChangePassword = $null
             PasswordLastSet = $null
             LastLogon = $null
-            SID = $Group.SID.Value
             GroupMembership = ""
             GroupDescription = $Group.Description
             GroupMembers = ($GroupMembers -join ";")
