@@ -20,6 +20,12 @@ Scripts for managing local users, groups, and their memberships.
 - **Export-UsersAndGroups.ps1** - Exports local users, groups, and memberships to CSV
 - **Import-UsersAndGroups.ps1** - Imports and recreates users, groups, and memberships from CSV (supports domain users in groups)
 
+### 🗂️ [Shared Folder Scripts](./SharedFolderScripts/)
+Scripts for managing and migrating shared folders and their configurations.
+
+- **Export-SharedFolders.ps1** - Exports shared folders, paths, permissions, and configurations to CSV
+- **Import-SharedFolders.ps1** - Imports and recreates shared folders with complete permission restoration from CSV
+
 ## Prerequisites
 
 - **Windows 10/11** or **Windows Server 2016+**
@@ -73,6 +79,15 @@ $SecurePass = ConvertTo-SecureString "TempPass123!" -AsPlainText -Force
 
 # Import permissions
 .\FolderPermissionScripts\Import-FolderPermissions.ps1 -InputPath "permissions.csv"
+```
+
+### Export and Import Shared Folders
+```powershell
+# Export shared folders
+.\SharedFolderScripts\Export-SharedFolders.ps1 -OutputPath "C:\Migration\shares.csv"
+
+# Import shared folders
+.\SharedFolderScripts\Import-SharedFolders.ps1 -InputPath "C:\Migration\shares.csv" -CreateMissingFolders
 ```
 
 ## Features
@@ -149,6 +164,7 @@ For issues, questions, or contributions:
 
 ## Version History
 
+- **v1.1** - Added Shared Folder Scripts for complete SMB share migration
 - **v1.0** - Initial release with Users/Groups and Folder Permissions scripts
 - Comprehensive error handling and logging
 - SecureString implementation for password security
