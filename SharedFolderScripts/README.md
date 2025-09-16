@@ -107,6 +107,7 @@ Copy the generated CSV file to the target computer.
 - Print shares are not included
 - Some advanced share features may require manual configuration
 - Domain user accounts must exist and be accessible on the target system
+- **SIDs are automatically skipped** during import as they are system-specific and cannot be transferred
 
 ### Best Practices
 1. **Test first**: Run on a test system before production migration
@@ -133,6 +134,7 @@ Copy the generated CSV file to the target computer.
 - Verify user and group accounts exist on target system
 - Check domain connectivity for domain accounts
 - Review NTFS permissions on parent directories
+- **SID-based permissions are automatically skipped** (logged as INFO messages)
 
 **Share already exists:**
 - Use `-SkipExisting` to skip existing shares

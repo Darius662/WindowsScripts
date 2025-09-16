@@ -108,6 +108,13 @@ function Test-AndCreateFolder {
     }
 }
 
+# Function to check if identity is a SID
+function Test-IsSID {
+    param($Identity)
+    # SIDs start with S- and follow the pattern S-R-I-S...
+    return $Identity -match '^S-\d+-\d+'
+}
+
 # Function to set folder permissions
 function Set-FolderPermissions {
     param($FolderPath, $PermissionsString)
@@ -126,6 +133,13 @@ function Set-FolderPermissions {
             $Parts = $Permission -split ":"
             if ($Parts.Count -ge 3) {
                 $Identity = $Parts[0]
+                
+                # Skip SIDs as they are system-specific
+                if (Test-IsSID -Identity $Identity) {
+                    Write-Log "Skipping SID-based permission: $Identity (SIDs are system-specific)" "INFO"
+                    continue
+                }
+                
                 $AccessControlType = $Parts[1]
                 $FileSystemRights = $Parts[2]
                 $InheritanceFlags = if ($Parts.Count -gt 3) { $Parts[3] } else { "ContainerInherit,ObjectInherit" }
@@ -184,6 +198,13 @@ function Set-SharePermissions {
             $Parts = $Permission -split ":"
             if ($Parts.Count -eq 3) {
                 $AccountName = $Parts[0]
+                
+                # Skip SIDs as they are system-specific
+                if (Test-IsSID -Identity $AccountName) {
+                    Write-Log "Skipping SID-based share permission: $AccountName (SIDs are system-specific)" "INFO"
+                    continue
+                }
+                
                 $AccessControlType = $Parts[1]
                 $AccessRight = $Parts[2]
                 
