@@ -20,12 +20,21 @@
 .PARAMETER LogPath
     Path for the import log file. Default is "ImportLog.txt" in the current directory.
 
+.NOTES
+    This script supports adding both local and domain users to local groups.
+    For domain users, the script will attempt to resolve the correct format automatically.
+    Domain users can be specified as either 'username' or 'DOMAIN\username' format.
+
 .EXAMPLE
     $SecurePass = ConvertTo-SecureString "TempPass123!" -AsPlainText -Force
     .\Import-UsersAndGroups.ps1 -InputPath "C:\Backup\users.csv" -DefaultPassword $SecurePass
 
 .EXAMPLE
     .\Import-UsersAndGroups.ps1 -InputPath "users.csv" -SkipExisting
+
+.EXAMPLE
+    # Import with domain users in group memberships
+    .\Import-UsersAndGroups.ps1 -InputPath "users.csv"
 #>
 
 param(
@@ -165,7 +174,7 @@ function Import-Group {
     }
 }
 
-# Function to add user to groups
+# Function to add user to groups (supports both local and domain users)
 function Set-UserGroupMemberships {
     param($UserData)
     
@@ -186,20 +195,50 @@ function Set-UserGroupMemberships {
                 continue
             }
             
-            # Check if user is already a member
+            # Determine the correct user identifier for membership check
+            $UserIdentifiers = @(
+                $UserData.Name,
+                "$env:COMPUTERNAME\$($UserData.Name)"
+            )
+            
+            # If the username contains a domain (domain\username), also check for that format
+            if ($UserData.Name -match '\\') {
+                $UserIdentifiers += $UserData.Name
+            } else {
+                # Also check if it might be a domain user by trying domain\username format
+                $UserIdentifiers += "$env:USERDOMAIN\$($UserData.Name)"
+            }
+            
+            # Check if user is already a member using any of the possible identifiers
             $ExistingMember = Get-LocalGroupMember -Group $GroupName -ErrorAction SilentlyContinue | 
-                Where-Object { $_.Name -eq $UserData.Name -or $_.Name -eq "$env:COMPUTERNAME\$($UserData.Name)" }
+                Where-Object { $UserIdentifiers -contains $_.Name }
             
             if (-not $ExistingMember) {
-                Add-LocalGroupMember -Group $GroupName -Member $UserData.Name
-                Write-Log "Added user '$($UserData.Name)' to group '$GroupName'"
+                # Try to add the user - let PowerShell resolve the correct format
+                try {
+                    Add-LocalGroupMember -Group $GroupName -Member $UserData.Name
+                    Write-Log "Added user '$($UserData.Name)' to group '$GroupName'"
+                } catch {
+                    # If direct add fails and it's not a domain\username format, try with domain prefix
+                    if (-not ($UserData.Name -match '\\')) {
+                        try {
+                            $DomainUser = "$env:USERDOMAIN\$($UserData.Name)"
+                            Add-LocalGroupMember -Group $GroupName -Member $DomainUser
+                            Write-Log "Added domain user '$DomainUser' to group '$GroupName'"
+                        } catch {
+                            Write-Log "Failed to add user '$($UserData.Name)' or '$DomainUser' to group '$GroupName': $($_.Exception.Message)" "ERROR"
+                        }
+                    } else {
+                        Write-Log "Failed to add user '$($UserData.Name)' to group '$GroupName': $($_.Exception.Message)" "ERROR"
+                    }
+                }
             }
             else {
                 Write-Log "User '$($UserData.Name)' is already a member of group '$GroupName'"
             }
         }
         catch {
-            Write-Log "Failed to add user '$($UserData.Name)' to group '$GroupName': $($_.Exception.Message)" "ERROR"
+            Write-Log "Failed to process group membership for user '$($UserData.Name)' in group '$GroupName': $($_.Exception.Message)" "ERROR"
         }
     }
 }

@@ -18,7 +18,7 @@ Scripts for managing and migrating folder permissions across Windows systems.
 Scripts for managing local users, groups, and their memberships.
 
 - **Export-UsersAndGroups.ps1** - Exports local users, groups, and memberships to CSV
-- **Import-UsersAndGroups.ps1** - Imports and recreates users, groups, and memberships from CSV
+- **Import-UsersAndGroups.ps1** - Imports and recreates users, groups, and memberships from CSV (supports domain users in groups)
 
 ## Prerequisites
 

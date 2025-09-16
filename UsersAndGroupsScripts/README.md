@@ -87,6 +87,8 @@ $SecurePass = ConvertTo-SecureString "SecurePass2024!" -AsPlainText -Force
 
 ### Group Memberships
 - All user-to-group relationships are preserved
+- Supports adding both local and domain users to local groups
+- Domain users can be specified as 'username' or 'DOMAIN\username' format
 
 ## Important Notes
 
@@ -97,7 +99,7 @@ $SecurePass = ConvertTo-SecureString "SecurePass2024!" -AsPlainText -Force
 - Review and verify all imported accounts before production use
 
 ### Limitations
-- Only works with local users and groups (not domain accounts)
+- Creates only local users (not domain accounts), but can add domain users to local groups
 - Built-in Windows accounts may have restrictions
 - Some system groups may not be modifiable
 - Password history and advanced security settings are not migrated
@@ -124,6 +126,8 @@ $SecurePass = ConvertTo-SecureString "SecurePass2024!" -AsPlainText -Force
 **Group membership errors:**
 - Verify the group exists before adding members
 - Some system groups have restrictions on membership
+- For domain users: Ensure the domain is accessible and the user account exists
+- Domain user format issues: Try both 'username' and 'DOMAIN\username' formats
 
 ### Log Files
 The import script creates detailed logs at the specified location (default: `ImportLog.txt`). Check this file for detailed information about any issues.
@@ -133,6 +137,7 @@ After import, verify:
 1. All expected users are present: `Get-LocalUser`
 2. All expected groups are present: `Get-LocalGroup`
 3. Group memberships are correct: `Get-LocalGroupMember -Group "GroupName"`
+4. Domain users in groups: Verify domain users appear correctly in group memberships
 
 ## Example Workflow
 
