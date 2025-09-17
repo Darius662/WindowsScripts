@@ -26,6 +26,12 @@ Scripts for managing and migrating shared folders and their configurations.
 - **Export-SharedFolders.ps1** - Exports shared folders, paths, permissions, and configurations to CSV
 - **Import-SharedFolders.ps1** - Imports and recreates shared folders with complete permission restoration from CSV
 
+### ⏲️ [Task Scheduler Scripts](./TaskSchedulerScripts/)
+Scripts for migrating Windows Task Scheduler entries between computers.
+
+- **Export-ScheduledTasks.ps1** - Exports user-created scheduled tasks and their configurations to CSV
+- **Import-ScheduledTasks.ps1** - Imports and recreates scheduled tasks from CSV with complete configuration
+
 ## Prerequisites
 
 - **Windows 10/11** or **Windows Server 2016+**
@@ -88,6 +94,16 @@ $SecurePass = ConvertTo-SecureString "TempPass123!" -AsPlainText -Force
 
 # Import shared folders
 .\SharedFolderScripts\Import-SharedFolders.ps1 -InputPath "C:\Migration\shares.csv" -CreateMissingFolders
+```
+
+### Export and Import Scheduled Tasks
+```powershell
+# Export scheduled tasks
+.\TaskSchedulerScripts\Export-ScheduledTasks.ps1 -OutputPath "C:\Migration\tasks.csv"
+
+# Import scheduled tasks
+$SecurePass = ConvertTo-SecureString "TaskPassword123!" -AsPlainText -Force
+.\TaskSchedulerScripts\Import-ScheduledTasks.ps1 -InputPath "C:\Migration\tasks.csv" -TaskPassword $SecurePass
 ```
 
 ## Features
@@ -164,6 +180,7 @@ For issues, questions, or contributions:
 
 ## Version History
 
+- **v1.2** - Added Task Scheduler Scripts for scheduled task migration
 - **v1.1** - Added Shared Folder Scripts for complete SMB share migration
 - **v1.0** - Initial release with Users/Groups and Folder Permissions scripts
 - Comprehensive error handling and logging
