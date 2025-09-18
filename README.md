@@ -32,6 +32,12 @@ Scripts for migrating Windows Task Scheduler entries between computers.
 - **Export-ScheduledTasks.ps1** - Exports user-created scheduled tasks and their configurations to CSV
 - **Import-ScheduledTasks.ps1** - Imports and recreates scheduled tasks from CSV with complete configuration
 
+### 🔒 [Firewall Rules Scripts](./FirewallRulesScripts/)
+Scripts for exporting and importing Windows Firewall rules between computers.
+
+- **Export-FirewallRules.ps1** - Exports Windows Firewall rules with all properties to CSV
+- **Import-FirewallRules.ps1** - Imports and recreates firewall rules from CSV with complete configuration
+
 ## Prerequisites
 
 - **Windows 10/11** or **Windows Server 2016+**
@@ -180,6 +186,7 @@ For issues, questions, or contributions:
 
 ## Version History
 
+- **v1.3** - Added Firewall Rules Scripts for Windows Firewall migration
 - **v1.2** - Added Task Scheduler Scripts for scheduled task migration
 - **v1.1** - Added Shared Folder Scripts for complete SMB share migration
 - **v1.0** - Initial release with Users/Groups and Folder Permissions scripts
