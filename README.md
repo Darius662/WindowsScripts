@@ -38,6 +38,18 @@ Scripts for exporting and importing Windows Firewall rules between computers.
 - **Export-FirewallRules.ps1** - Exports Windows Firewall rules with all properties to CSV
 - **Import-FirewallRules.ps1** - Imports and recreates firewall rules from CSV with complete configuration
 
+### 📒 [Registry Scripts](./RegistryScripts/)
+Scripts for exporting and importing registry settings between computers.
+
+- **Export-RegistrySettings.ps1** - Exports registry keys and values with all properties to CSV
+- **Import-RegistrySettings.ps1** - Imports and recreates registry settings from CSV with proper value types
+
+### ⚙️ [Services Scripts](./ServicesScripts/)
+Scripts for exporting and importing Windows services configuration between computers.
+
+- **Export-WindowsServices.ps1** - Exports Windows services with all properties to CSV
+- **Import-WindowsServices.ps1** - Imports and recreates or updates services from CSV with complete configuration
+
 ## Prerequisites
 
 - **Windows 10/11** or **Windows Server 2016+**
@@ -186,6 +198,8 @@ For issues, questions, or contributions:
 
 ## Version History
 
+- **v1.5** - Added Services Scripts for Windows services migration
+- **v1.4** - Added Registry Scripts for registry settings migration
 - **v1.3** - Added Firewall Rules Scripts for Windows Firewall migration
 - **v1.2** - Added Task Scheduler Scripts for scheduled task migration
 - **v1.1** - Added Shared Folder Scripts for complete SMB share migration
