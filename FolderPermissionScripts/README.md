@@ -38,6 +38,7 @@ This script imports permissions from a CSV file (created by the export script) a
 - `-UseLocalPrincipals`: If specified, the script will use local security principals on the target computer instead of trying to use the exact security principals from the source computer (enabled by default)
 - `-SkipSIDs`: If specified, the script will skip any permissions with SIDs (Security Identifiers) that typically come from deleted or legacy accounts (enabled by default)
 - `-SkipUsers`: If specified, the script will skip individual user accounts and only apply group permissions (enabled by default)
+- `-SkipInheritedPermissions`: If specified, the script will skip applying permissions that already exist through inheritance from parent folders (enabled by default)
 
 ## Example Workflow
 
@@ -53,7 +54,7 @@ This script imports permissions from a CSV file (created by the export script) a
    # First, test with WhatIf to see what would happen
    .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -WhatIf
    
-   # Then apply the permissions (skips SIDs and user accounts by default)
+   # Then apply the permissions (skips SIDs, user accounts, and inherited permissions by default)
    .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects"
    
    # If you want to include SIDs (not recommended for legacy SIDs)
@@ -61,6 +62,9 @@ This script imports permissions from a CSV file (created by the export script) a
    
    # If you want to include individual user accounts
    .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -SkipUsers:$false
+   
+   # If you want to apply permissions even if they already exist through inheritance
+   .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -SkipInheritedPermissions:$false
    
    # If you want to include both SIDs and user accounts
    .\Import-FolderPermissions.ps1 -CsvFile "E:\permissions.csv" -TargetBasePath "E:\Projects" -SkipSIDs:$false -SkipUsers:$false
@@ -84,8 +88,18 @@ This script imports permissions from a CSV file (created by the export script) a
 - User account handling:
   - Individual user accounts are skipped by default, focusing only on group permissions
   - This helps maintain a cleaner permission structure on the target system
-  - The script uses heuristics to identify user accounts vs. groups (naming patterns, etc.)
+  - The script uses heuristics to identify user accounts vs. groups based on naming patterns:
+    - Groups with common prefixes (GRP_, G_, Role_, etc.)
+    - Groups containing keywords like "Users", "Groups", "Admins", etc. (e.g., "PD_Users_Technical")
+    - Groups with multiple underscore segments in their names
+    - Well-known built-in groups
+  - User accounts are typically identified by dot notation (firstname.lastname)
   - If you need to include individual user permissions, use `-SkipUsers:$false`
+- Inherited permissions handling:
+  - The script automatically detects and skips applying permissions that already exist through inheritance
+  - This prevents duplicate permissions and maintains a cleaner permission structure
+  - When a permission already exists through inheritance, the script will display a cyan message and skip applying it
+  - This is particularly useful for subfolders that inherit permissions from parent folders
 - Error handling:
   - The script gracefully handles unmappable identity references (accounts/groups that don't exist on the target system)
   - When an identity can't be mapped, the script will display a yellow warning message and continue processing other permissions

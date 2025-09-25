@@ -19,7 +19,10 @@ param (
     [switch]$SkipSIDs,
     
     [Parameter(Mandatory=$false)]
-    [switch]$SkipUsers
+    [switch]$SkipUsers,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$SkipInheritedPermissions
 )
 
 # Set default values for switch parameters
@@ -33,6 +36,10 @@ if (-not $PSBoundParameters.ContainsKey('SkipSIDs')) {
 
 if (-not $PSBoundParameters.ContainsKey('SkipUsers')) {
     $SkipUsers = $true
+}
+
+if (-not $PSBoundParameters.ContainsKey('SkipInheritedPermissions')) {
+    $SkipInheritedPermissions = $true
 }
 
 # Check if the CSV file exists
@@ -84,9 +91,19 @@ function Test-IsUserAccount {
     # Users often have patterns like firstname.lastname or individual names
     # Groups often have patterns like GRP_, G_, Role_, etc.
     
-    # Check for common group prefixes
+    # Check for common group prefixes and patterns
     if ($accountName -match '^(GRP_|G_|Role_|Group_|Team_|Dept_|Department_|Admin_|Admins_)') {
         return $false  # Likely a group
+    }
+    
+    # Check for common group patterns with Users in the name
+    if ($accountName -match '(Users|Groups|Admins|Roles|Teams|Access|Permissions)') {
+        return $false  # Likely a group
+    }
+    
+    # Check for patterns with multiple underscores (common in group names like PD_Users_Technical)
+    if (($accountName.Split('_').Count -gt 2) -and ($accountName -notmatch '\.')) {
+        return $false  # Likely a group with multiple segments
     }
     
     # If it contains a dot, it's likely a user (firstname.lastname pattern)
@@ -120,6 +137,52 @@ function Get-AccountNameFromIdentityReference {
     return $IdentityReference
 }
 
+# Function to check if a permission already exists as inherited
+function Test-PermissionExistsAsInherited {
+    param (
+        [string]$FolderPath,
+        [string]$IdentityReference,
+        [System.Security.AccessControl.AccessControlType]$AccessControlType,
+        [System.Security.AccessControl.FileSystemRights]$FileSystemRights,
+        [System.Security.AccessControl.InheritanceFlags]$InheritanceFlags,
+        [System.Security.AccessControl.PropagationFlags]$PropagationFlags
+    )
+    
+    try {
+        # Get the current ACL
+        $acl = Get-Acl -Path $FolderPath
+        
+        # Get the account name from the identity reference
+        $accountName = Get-AccountNameFromIdentityReference -IdentityReference $IdentityReference
+        
+        # Check each access rule
+        foreach ($rule in $acl.Access) {
+            # Skip if not inherited
+            if (-not $rule.IsInherited) {
+                continue
+            }
+            
+            # Get the account name from the rule's identity reference
+            $ruleAccountName = Get-AccountNameFromIdentityReference -IdentityReference $rule.IdentityReference.Value
+            
+            # Check if the identity, rights, and control type match
+            if (($ruleAccountName -eq $accountName) -and 
+                ($rule.FileSystemRights -eq $FileSystemRights) -and 
+                ($rule.AccessControlType -eq $AccessControlType) -and 
+                ($rule.InheritanceFlags -eq $InheritanceFlags) -and 
+                ($rule.PropagationFlags -eq $PropagationFlags)) {
+                return $true
+            }
+        }
+        
+        return $false
+    }
+    catch {
+        Write-Warning "Error checking existing permissions: $_"
+        return $false
+    }
+}
+
 # Function to apply permissions to a folder
 function Set-FolderPermission {
     param (
@@ -134,7 +197,8 @@ function Set-FolderPermission {
         [bool]$WhatIf,
         [bool]$UseLocalPrincipals,
         [bool]$SkipSIDs,
-        [bool]$SkipUsers
+        [bool]$SkipUsers,
+        [bool]$SkipInheritedPermissions
     )
     
     # Determine the relative path from the original base path
@@ -191,6 +255,21 @@ function Set-FolderPermission {
                 # For other accounts, use the local computer name with the account
                 $computerName = $env:COMPUTERNAME
                 $identityToUse = "$computerName\$accountName"
+            }
+        }
+        
+        # Check if this permission already exists as inherited and if we should skip it
+        if ($SkipInheritedPermissions) {
+            $permissionExistsAsInherited = Test-PermissionExistsAsInherited -FolderPath $targetPath `
+                -IdentityReference $identityToUse `
+                -AccessControlType $accessControlType `
+                -FileSystemRights $fileSystemRights `
+                -InheritanceFlags $inheritanceFlags `
+                -PropagationFlags $propagationFlags
+                
+            if ($permissionExistsAsInherited) {
+                Write-Host "Skipping inherited permission for $identityToUse on folder: $targetPath (already exists via inheritance)" -ForegroundColor Cyan
+                return
             }
         }
         
@@ -273,7 +352,8 @@ try {
             -WhatIf $WhatIf `
             -UseLocalPrincipals $UseLocalPrincipals `
             -SkipSIDs $SkipSIDs `
-            -SkipUsers $SkipUsers
+            -SkipUsers $SkipUsers `
+            -SkipInheritedPermissions $SkipInheritedPermissions
     }
     
     Write-Host "Permission import completed."
