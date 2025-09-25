@@ -17,6 +17,10 @@
 .PARAMETER SkipExisting
     If specified, existing users and groups will be skipped instead of updated.
 
+.PARAMETER GroupsOnly
+    If specified, only groups will be created without creating any users or adding users to groups.
+    This is useful when you only want to create the group structure without user accounts.
+
 .PARAMETER LogPath
     Path for the import log file. Default is "ImportLog.txt" in the current directory.
 
@@ -33,6 +37,10 @@
     .\Import-UsersAndGroups.ps1 -InputPath "users.csv" -SkipExisting
 
 .EXAMPLE
+    # Import only groups without any users
+    .\Import-UsersAndGroups.ps1 -InputPath "users.csv" -GroupsOnly
+
+.EXAMPLE
     # Import with domain users in group memberships
     .\Import-UsersAndGroups.ps1 -InputPath "users.csv"
 #>
@@ -44,6 +52,8 @@ param(
     [SecureString]$DefaultPassword,
     
     [switch]$SkipExisting,
+    
+    [switch]$GroupsOnly,
     
     [string]$LogPath = ".\ImportLog.txt"
 )
@@ -292,30 +302,44 @@ try {
         }
     }
     
-    # Import users
-    Write-Log "Importing users..."
+    # Import users (unless GroupsOnly is specified)
     $UsersImported = 0
-    foreach ($User in $Users) {
-        if (Import-User -UserData $User -Password $DefaultPassword) {
-            $UsersImported++
+    if (-not $GroupsOnly) {
+        Write-Log "Importing users..."
+        foreach ($User in $Users) {
+            if (Import-User -UserData $User -Password $DefaultPassword) {
+                $UsersImported++
+            }
         }
+    } else {
+        Write-Log "Skipping user creation (GroupsOnly parameter specified)" "INFO"
     }
     
-    # Set group memberships
-    Write-Log "Setting group memberships..."
-    foreach ($User in $Users) {
-        Set-UserGroupMemberships -UserData $User
+    # Set group memberships (unless GroupsOnly is specified)
+    if (-not $GroupsOnly) {
+        Write-Log "Setting group memberships..."
+        foreach ($User in $Users) {
+            Set-UserGroupMemberships -UserData $User
+        }
+    } else {
+        Write-Log "Skipping group membership assignments (GroupsOnly parameter specified)" "INFO"
     }
     
     # Final summary
     Write-Log "Import completed!" "SUCCESS"
     Write-Log "Groups imported/updated: $GroupsImported of $($Groups.Count)"
-    Write-Log "Users imported/updated: $UsersImported of $($Users.Count)"
-    Write-Log "Default password used for new users: [SecureString - length $($PlainPassword.Length) characters]"
-    Write-Log "Log file saved to: $LogPath"
     
-    Write-Host "`nIMPORTANT: Please change the default passwords for imported users!" -ForegroundColor Red -BackgroundColor Yellow
-    Write-Host "Default password used: $PlainPassword" -ForegroundColor Yellow
+    if (-not $GroupsOnly) {
+        Write-Log "Users imported/updated: $UsersImported of $($Users.Count)"
+        Write-Log "Default password used for new users: [SecureString - length $($PlainPassword.Length) characters]"
+        
+        Write-Host "`nIMPORTANT: Please change the default passwords for imported users!" -ForegroundColor Red -BackgroundColor Yellow
+        Write-Host "Default password used: $PlainPassword" -ForegroundColor Yellow
+    } else {
+        Write-Log "Users skipped (GroupsOnly parameter specified)"
+    }
+    
+    Write-Log "Log file saved to: $LogPath"
     
 }
 catch {

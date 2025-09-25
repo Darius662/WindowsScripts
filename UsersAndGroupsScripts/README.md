@@ -52,7 +52,8 @@ $SecurePass = ConvertTo-SecureString "TempPass123!" -AsPlainText -Force
 - `-InputPath` (required): Path to the CSV file created by the export script
 - `-DefaultPassword` (optional): SecureString password for imported users. If not specified, a random password is generated
 - `-SkipExisting` (optional): Skip existing users/groups instead of updating them
-- `-LogPath` (optional): Path for the import log file. Default: `.\ImportLog.txt`
+- `-GroupsOnly` (optional): Create only groups without any users or group memberships
+- `-LogPath` (optional): Path for the import log file. Default: `./ImportLog.txt`
 
 **Examples:**
 ```powershell
@@ -68,6 +69,9 @@ $SecurePass = ConvertTo-SecureString "SecurePass2024!" -AsPlainText -Force
 
 # Custom log file location
 .\Import-UsersAndGroups.ps1 -InputPath "users.csv" -LogPath "C:\Logs\import.log"
+
+# Create only groups without any users
+.\Import-UsersAndGroups.ps1 -InputPath "users.csv" -GroupsOnly
 ```
 
 ## What Gets Migrated
