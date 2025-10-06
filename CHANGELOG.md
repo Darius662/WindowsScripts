@@ -2,6 +2,13 @@
 
 All notable changes to the Windows Scripts Collection will be documented in this file.
 
+## [1.3.0] - 2025-10-06
+
+### Added
+- **FolderPermissionScripts**:
+  - Added `Remove-FolderPermissions.ps1` script to remove permissions not listed in a CSV file
+  - Added `Remove-FolderPermissions.ps1` script
+
 ## [1.2.0] - 2025-09-25
 
 ### Added

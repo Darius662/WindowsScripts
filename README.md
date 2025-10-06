@@ -13,6 +13,8 @@ Scripts for managing and migrating folder permissions across Windows systems.
 
 - **Export-FolderPermissions.ps1** - Exports folder permissions to CSV format
 - **Import-FolderPermissions.ps1** - Imports and applies folder permissions from CSV
+- **Remove-FolderPermissions.ps1** - Removes permissions not listed in a CSV file
+
 
 ### 👥 [Users and Groups Scripts](./UsersAndGroupsScripts/)
 Scripts for managing local users, groups, and their memberships.

@@ -2,6 +2,11 @@
 
 All notable changes to the Folder Permission Scripts will be documented in this file.
 
+## [1.3.0] - 2025-10-06
+
+### Added
+- Added `Remove-FolderPermissions.ps1` script to remove permissions not listed in a CSV file
+
 ## [1.2.0] - 2025-09-25
 
 ### Added
