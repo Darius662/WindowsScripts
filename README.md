@@ -34,19 +34,24 @@ Scripts for migrating Windows Task Scheduler entries between computers.
 - **Export-ScheduledTasks.ps1** - Exports user-created scheduled tasks and their configurations to CSV
 - **Import-ScheduledTasks.ps1** - Imports and recreates scheduled tasks from CSV with complete configuration
 
-### 🔒 [Firewall Rules Scripts](./FirewallRulesScripts/)
+### [Firewall Rules Scripts](./FirewallRulesScripts/)
 Scripts for exporting and importing Windows Firewall rules between computers.
 
 - **Export-FirewallRules.ps1** - Exports Windows Firewall rules with all properties to CSV
 - **Import-FirewallRules.ps1** - Imports and recreates firewall rules from CSV with complete configuration
 
-### 📒 [Registry Scripts](./RegistryScripts/)
+### [Registry Scripts](./RegistryScripts/)
 Scripts for exporting and importing registry settings between computers.
 
 - **Export-RegistrySettings.ps1** - Exports registry keys and values with all properties to CSV
 - **Import-RegistrySettings.ps1** - Imports and recreates registry settings from CSV with proper value types
 
-### ⚙️ [Services Scripts](./ServicesScripts/)
+### [File Scripts](./FileScripts/)
+Utilities for working with files and assets on Windows.
+
+- **ImageHarvester** - Recursively searches directories for image files and copies them to a target folder. See `FileScripts/ImageHarvester/README.md` for usage and examples.
+
+### [Services Scripts](./ServicesScripts/)
 Scripts for exporting and importing Windows services configuration between computers.
 
 - **Export-WindowsServices.ps1** - Exports Windows services with all properties to CSV
