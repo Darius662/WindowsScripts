@@ -86,7 +86,15 @@ function Test-IsUserAccount {
     $accountName = Get-AccountNameFromIdentityReference -IdentityReference $IdentityReference
     
     # Well-known groups that should not be skipped
-    $wellKnownGroups = @('Everyone', 'SYSTEM', 'Administrators', 'Users', 'Authenticated Users', 'Domain Users', 'Domain Admins')
+    $wellKnownGroups = @(
+        'Everyone', 'SYSTEM', 'Administrators', 'Users', 'Authenticated Users',
+        'Domain Users', 'Domain Admins', 'Enterprise Admins', 'Schema Admins',
+        'Account Operators', 'Backup Operators', 'Print Operators', 'Server Operators',
+        'Network Configuration Operators', 'Remote Desktop Users', 'Distributed COM Users',
+        'Performance Log Users', 'Performance Monitor Users', 'Power Users',
+        'Certificate Service DCOM Access', 'Cryptographic Operators', 'Event Log Readers',
+        'IIS_IUSRS', 'Remote Management Users'
+    )
     
     # If it's a well-known group, it's not a user account
     if ($wellKnownGroups -contains $accountName) {
@@ -95,32 +103,46 @@ function Test-IsUserAccount {
     
     # Try to determine if it's a user or group based on naming convention
     # This is a heuristic approach and may not be 100% accurate
-    # Users often have patterns like firstname.lastname or individual names
-    # Groups often have patterns like GRP_, G_, Role_, etc.
     
-    # Check for common group prefixes and patterns
-    if ($accountName -match '^(GRP_|G_|Role_|Group_|Team_|Dept_|Department_|Admin_|Admins_)') {
+    # Check for common domain group patterns
+    if ($IdentityReference -match '\\(Domain |Global |Universal |Security |Distribution )') {
+        return $false  # Likely a domain group with a descriptor
+    }
+    
+    # Check for common group prefixes and patterns (expanded list)
+    if ($accountName -match '^(GRP_|G_|DG_|SG_|Role_|Group_|Team_|Dept_|Department_|Admin_|Admins_|APP_|APP-|SVC_|SVC-|Service_|Service-|DL_|DL-|Grp|Sec_|Sec-)') {
         return $false  # Likely a group
     }
     
-    # Check for common group patterns with Users in the name
-    if ($accountName -match '(Users|Groups|Admins|Roles|Teams|Access|Permissions)') {
+    # Check for common group patterns with keywords in the name (expanded list)
+    if ($accountName -match '(Users|Groups|Admins|Roles|Teams|Access|Permissions|Staff|Members|Accounts|Operators|Managers|Readers|Writers|Owners|Contributors|Developers|Support|Helpdesk|IT|HR|Finance|Sales|Marketing|Engineering|Operations|Security|Audit|Compliance|Project|Program|Service|Application|App|Resource|System)') {
         return $false  # Likely a group
     }
     
-    # Check for patterns with multiple underscores (common in group names like PD_Users_Technical)
-    if (($accountName.Split('_').Count -gt 2) -and ($accountName -notmatch '\.')) {
+    # Check for patterns with multiple underscores or hyphens (common in group names)
+    if ((($accountName.Split('_').Count -gt 1) -or ($accountName.Split('-').Count -gt 1)) -and ($accountName -notmatch '\.')) {
         return $false  # Likely a group with multiple segments
     }
     
+    # Check for all caps names (often groups)
+    if ($accountName -cmatch '^[A-Z0-9_-]+$' -and $accountName.Length -gt 3) {
+        return $false  # Likely a group with all caps
+    }
+    
     # If it contains a dot, it's likely a user (firstname.lastname pattern)
-    if ($accountName -match '\.') {
+    # But exclude common group patterns that might contain dots
+    if ($accountName -match '\.' -and $accountName -notmatch '(service|app|grp|group|team|dept|role)\.') {
         return $true
     }
     
-    # Default to assuming it's a user if we can't determine otherwise
-    # This is a conservative approach - better to skip than to apply incorrectly
-    return $true
+    # If the name is very short (1-2 chars), it's more likely to be a group code than a user
+    if ($accountName.Length -le 2) {
+        return $false
+    }
+    
+    # Default to assuming it's a group if we're not sure
+    # This is a change from the previous approach - better to create a group than skip
+    return $false
 }
 
 # Function to extract account name from identity reference
@@ -144,11 +166,36 @@ function Get-AccountNameFromIdentityReference {
     return $IdentityReference
 }
 
+# Function to extract computer name and account name from an identity reference
+function Split-IdentityReference {
+    param (
+        [string]$IdentityReference
+    )
+    
+    if ($IdentityReference -match '\\') {
+        $parts = $IdentityReference.Split('\')
+        return @{
+            ComputerName = $parts[0]
+            AccountName = $parts[1]
+        }
+    } else {
+        return @{
+            ComputerName = $null
+            AccountName = $IdentityReference
+        }
+    }
+}
+
 # Function to check if a local group exists
 function Test-LocalGroupExists {
     param (
         [string]$GroupName
     )
+    
+    # Remove any computer/domain prefix if present
+    if ($GroupName -match '\\') {
+        $GroupName = ($GroupName -split '\\')[1]
+    }
     
     try {
         $group = Get-LocalGroup -Name $GroupName -ErrorAction SilentlyContinue
@@ -166,6 +213,12 @@ function New-LocalGroupIfNotExists {
         [bool]$WhatIf
     )
     
+    # Remove any computer/domain prefix if present
+    $originalGroupName = $GroupName
+    if ($GroupName -match '\\') {
+        $GroupName = ($GroupName -split '\\')[1]
+    }
+    
     if (-not (Test-LocalGroupExists -GroupName $GroupName)) {
         if ($WhatIf) {
             Write-Host "WhatIf: Would create local group: $GroupName" -ForegroundColor Cyan
@@ -173,7 +226,7 @@ function New-LocalGroupIfNotExists {
         } else {
             try {
                 New-LocalGroup -Name $GroupName -ErrorAction Stop | Out-Null
-                Write-Host "Created local group: $GroupName" -ForegroundColor Green
+                Write-Host "Created local group: $GroupName (from $originalGroupName)" -ForegroundColor Green
                 return $true
             }
             catch {
@@ -307,21 +360,29 @@ function Set-FolderPermission {
         # Determine the identity reference to use
         $identityToUse = $IdentityReference
         
-        if ($UseLocalPrincipals) {
-            # Extract just the account name without domain
-            $accountName = Get-AccountNameFromIdentityReference -IdentityReference $IdentityReference
-            
-            # For well-known SIDs like 'Everyone', 'SYSTEM', etc., use them as is
-            $wellKnownAccounts = @('Everyone', 'SYSTEM', 'Administrators', 'Users', 'Authenticated Users')
-            
-            if ($wellKnownAccounts -contains $accountName) {
-                # Use the account name directly for well-known accounts
-                $identityToUse = $accountName
-            } else {
-                # For other accounts, use the local computer name with the account
-                $computerName = $env:COMPUTERNAME
-                $identityToUse = "$computerName\$accountName"
-            }
+        # Parse the identity reference to get computer name and account name
+        $identityParts = Split-IdentityReference -IdentityReference $IdentityReference
+        $accountName = $identityParts.AccountName
+        $specifiedComputer = $identityParts.ComputerName
+        
+        # For well-known SIDs like 'Everyone', 'SYSTEM', etc., use them as is
+        $wellKnownAccounts = @('Everyone', 'SYSTEM', 'Administrators', 'Users', 'Authenticated Users')
+        
+        if ($wellKnownAccounts -contains $accountName) {
+            # Use the account name directly for well-known accounts
+            $identityToUse = $accountName
+        } 
+        # If UseLocalPrincipals is true and it's not a well-known account
+        elseif ($UseLocalPrincipals) {
+            # Use the local computer name with the account
+            $computerName = $env:COMPUTERNAME
+            $identityToUse = "$computerName\$accountName"
+        }
+        # If not using local principals, respect the specified computer name in the CSV
+        # This allows manually edited CSV files to work correctly
+        else {
+            # Keep the identity as specified in the CSV
+            $identityToUse = $IdentityReference
         }
         
         # Check if this permission already exists as inherited and if we should skip it
@@ -350,41 +411,52 @@ function Set-FolderPermission {
             )
         }
         catch [System.Security.Principal.IdentityNotMappedException] {
-            # If CreateMissingGroups is enabled and this is likely a group, try to create it
-            $accountName = Get-AccountNameFromIdentityReference -IdentityReference $identityToUse
-            $isLikelyGroup = -not (Test-IsUserAccount -IdentityReference $accountName)
-            
-            if ($CreateMissingGroups -and $isLikelyGroup) {
-                Write-Host "Attempting to create missing group: $accountName" -ForegroundColor Cyan
-                $groupCreated = New-LocalGroupIfNotExists -GroupName $accountName -WhatIf $WhatIf
+            # If CreateMissingGroups is enabled, try to create the group
+            if ($CreateMissingGroups) {
+                # Get the identity parts
+                $identityParts = Split-IdentityReference -IdentityReference $identityToUse
+                $groupAccountName = $identityParts.AccountName
                 
-                if ($groupCreated -and -not $WhatIf) {
-                    # Try again with the newly created group
-                    try {
-                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-                            $identityToUse,
-                            $fileSystemRights,
-                            $inheritanceFlags,
-                            $propagationFlags,
-                            $accessControlType
-                        )
-                    }
-                    catch {
-                        $exception = $_.Exception
-                        Write-Warning ("Error creating access rule for newly created group {0}: {1}" -f $identityToUse, $exception.Message)
+                # Check if this is likely a group
+                $isLikelyGroup = -not (Test-IsUserAccount -IdentityReference $groupAccountName)
+                
+                if ($isLikelyGroup) {
+                    Write-Host "Attempting to create missing group: $identityToUse" -ForegroundColor Cyan
+                    
+                    # Try to create the group (the function will handle removing the prefix if needed)
+                    $groupCreated = New-LocalGroupIfNotExists -GroupName $identityToUse -WhatIf $WhatIf
+                    
+                    if ($groupCreated -and -not $WhatIf) {
+                        # Try again with the newly created group
+                        try {
+                            $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                                $identityToUse,
+                                $fileSystemRights,
+                                $inheritanceFlags,
+                                $propagationFlags,
+                                $accessControlType
+                            )
+                        }
+                        catch {
+                            $exception = $_.Exception
+                            Write-Warning ("Error creating access rule for newly created group {0}: {1}" -f $identityToUse, $exception.Message)
+                            return
+                        }
+                    } else {
+                        # If in WhatIf mode or group creation failed
+                        if ($WhatIf) {
+                            Write-Host "WhatIf: Would create access rule for new group $identityToUse" -ForegroundColor Cyan
+                        } else {
+                            Write-Host "Skipping unmappable identity after failed group creation: $identityToUse for folder: $targetPath" -ForegroundColor Yellow
+                        }
                         return
                     }
                 } else {
-                    # If in WhatIf mode or group creation failed
-                    if ($WhatIf) {
-                        Write-Host "WhatIf: Would create access rule for new group $identityToUse" -ForegroundColor Cyan
-                    } else {
-                        Write-Host "Skipping unmappable identity after failed group creation: $identityToUse for folder: $targetPath" -ForegroundColor Yellow
-                    }
+                    Write-Host "Skipping unmappable identity (not likely a group): $identityToUse for folder: $targetPath" -ForegroundColor Yellow
                     return
                 }
             } else {
-                Write-Host "Skipping unmappable identity: $identityToUse (original: $IdentityReference) for folder: $targetPath" -ForegroundColor Yellow
+                Write-Host "Skipping unmappable identity (group creation disabled): $identityToUse for folder: $targetPath" -ForegroundColor Yellow
                 return
             }
         }

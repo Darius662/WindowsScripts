@@ -20,6 +20,10 @@ All notable changes to the Windows Scripts Collection will be documented in this
   - Fixed `Import-FolderPermissions.ps1` to properly handle empty paths in CSV files
   - Added better validation and error handling for CSV import
   - Improved path validation to prevent "empty string" errors
+  - Enhanced domain group detection to correctly identify more group naming patterns
+  - Changed default behavior to treat ambiguous names as groups rather than users
+  - Fixed group creation to properly handle manually updated computer prefixes in CSV files
+  - Added support for respecting specified computer names when creating groups
 
 ## [1.3.0] - 2025-10-06
 
