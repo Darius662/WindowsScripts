@@ -2,12 +2,24 @@
 
 All notable changes to the Windows Scripts Collection will be documented in this file.
 
+## [1.3.1] - 2025-10-14
+
+### Added
+- **FolderPermissionScripts**:
+  - Added automatic local group creation to `Import-FolderPermissions.ps1` when missing groups are encountered
+  - Added `-CreateMissingGroups` parameter to control group creation behavior (enabled by default)
+
+### Changed
+- **FolderPermissionScripts**:
+  - Updated `Remove-FolderPermissions.ps1` to remove all non-inherited permissions without requiring a CSV file
+  - Added `-Recursive` parameter to process subfolders
+  - Simplified parameters and improved usability
+
 ## [1.3.0] - 2025-10-06
 
 ### Added
 - **FolderPermissionScripts**:
   - Added `Remove-FolderPermissions.ps1` script to remove permissions not listed in a CSV file
-  - Added `Remove-FolderPermissions.ps1` script
 
 ## [1.2.0] - 2025-09-25
 

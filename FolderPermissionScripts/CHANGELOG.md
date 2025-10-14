@@ -2,6 +2,17 @@
 
 All notable changes to the Folder Permission Scripts will be documented in this file.
 
+## [1.4.0] - 2025-10-14
+
+### Added
+- Added automatic local group creation to `Import-FolderPermissions.ps1` when missing groups are encountered
+- Added `-CreateMissingGroups` parameter to control group creation behavior (enabled by default)
+
+### Changed
+- Updated `Remove-FolderPermissions.ps1` to remove all non-inherited permissions without requiring a CSV file
+- Added `-Recursive` parameter to process subfolders
+- Simplified parameters and improved usability
+
 ## [1.3.0] - 2025-10-06
 
 ### Added

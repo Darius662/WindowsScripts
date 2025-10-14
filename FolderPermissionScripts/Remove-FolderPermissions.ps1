@@ -1,35 +1,25 @@
 # Remove-FolderPermissions.ps1
-# This script removes folder permissions that are not listed in the specified CSV file
-# Usage: .\Remove-FolderPermissions.ps1 -CsvFile "C:\Path\To\Permissions.csv" -TargetBasePath "C:\Target\Path"
+# This script removes all non-inherited folder permissions
+# Usage: .\Remove-FolderPermissions.ps1 -FolderPath "C:\Path\To\Folder" [-Recursive] [-WhatIf] [-SkipSIDs] [-SkipUsers]
 
 param (
     [Parameter(Mandatory=$true)]
-    [string]$CsvFile,
+    [string]$FolderPath,
     
-    [Parameter(Mandatory=$true)]
-    [string]$TargetBasePath,
+    [Parameter(Mandatory=$false)]
+    [switch]$Recursive,
     
     [Parameter(Mandatory=$false)]
     [switch]$WhatIf,
     
     [Parameter(Mandatory=$false)]
-    [switch]$UseLocalPrincipals,
-    
-    [Parameter(Mandatory=$false)]
     [switch]$SkipSIDs,
     
     [Parameter(Mandatory=$false)]
-    [switch]$SkipUsers,
-    
-    [Parameter(Mandatory=$false)]
-    [switch]$SkipInheritedPermissions
+    [switch]$SkipUsers
 )
 
 # Set default values for switch parameters
-if (-not $PSBoundParameters.ContainsKey('UseLocalPrincipals')) {
-    $UseLocalPrincipals = $true
-}
-
 if (-not $PSBoundParameters.ContainsKey('SkipSIDs')) {
     $SkipSIDs = $true
 }
@@ -38,19 +28,9 @@ if (-not $PSBoundParameters.ContainsKey('SkipUsers')) {
     $SkipUsers = $true
 }
 
-if (-not $PSBoundParameters.ContainsKey('SkipInheritedPermissions')) {
-    $SkipInheritedPermissions = $true
-}
-
-# Check if the CSV file exists
-if (-not (Test-Path -Path $CsvFile)) {
-    Write-Error "The specified CSV file does not exist: $CsvFile"
-    exit 1
-}
-
-# Check if the target base path exists
-if (-not (Test-Path -Path $TargetBasePath)) {
-    Write-Error "The specified target base path does not exist: $TargetBasePath"
+# Check if the folder path exists
+if (-not (Test-Path -Path $FolderPath)) {
+    Write-Error "The specified folder path does not exist: $FolderPath"
     exit 1
 }
 
@@ -126,45 +106,14 @@ function Get-AccountNameFromIdentityReference {
     return $IdentityReference
 }
 
-# Function to check if a permission is in the allowed list
-function Test-PermissionInList {
-    param (
-        [array]$AllowedPermissions,
-        [string]$FolderPath,
-        [string]$IdentityReference,
-        [System.Security.AccessControl.AccessControlType]$AccessControlType,
-        [System.Security.AccessControl.FileSystemRights]$FileSystemRights,
-        [System.Security.AccessControl.InheritanceFlags]$InheritanceFlags,
-        [System.Security.AccessControl.PropagationFlags]$PropagationFlags
-    )
-    
-    foreach ($perm in $AllowedPermissions) {
-        $permAccountName = Get-AccountNameFromIdentityReference -IdentityReference $perm.IdentityReference
-        $currentAccountName = Get-AccountNameFromIdentityReference -IdentityReference $IdentityReference
-        
-        if ($perm.FolderPath -eq $FolderPath -and 
-            $permAccountName -eq $currentAccountName -and 
-            $perm.AccessControlType -eq $AccessControlType.ToString() -and 
-            $perm.FileSystemRights -eq $FileSystemRights.ToString() -and 
-            $perm.InheritanceFlags -eq $InheritanceFlags.ToString() -and 
-            $perm.PropagationFlags -eq $PropagationFlags.ToString()) {
-            return $true
-        }
-    }
-    
-    return $false
-}
 
-# Function to remove permissions not in the allowed list
-function Remove-UnauthorizedPermissions {
+# Function to remove all non-inherited permissions
+function Remove-NonInheritedPermissions {
     param (
         [string]$FolderPath,
-        [array]$AllowedPermissions,
         [bool]$WhatIf,
-        [bool]$UseLocalPrincipals,
         [bool]$SkipSIDs,
-        [bool]$SkipUsers,
-        [bool]$SkipInheritedPermissions
+        [bool]$SkipUsers
     )
     
     try {
@@ -176,8 +125,8 @@ function Remove-UnauthorizedPermissions {
         
         # Check each access rule
         foreach ($rule in $acl.Access) {
-            # Skip inherited permissions if requested
-            if ($SkipInheritedPermissions -and $rule.IsInherited) {
+            # Skip inherited permissions (always keep them)
+            if ($rule.IsInherited) {
                 continue
             }
             
@@ -193,18 +142,8 @@ function Remove-UnauthorizedPermissions {
                 continue
             }
             
-            # Check if this permission is in the allowed list
-            $isAllowed = Test-PermissionInList -AllowedPermissions $AllowedPermissions `
-                -FolderPath $FolderPath `
-                -IdentityReference $rule.IdentityReference.Value `
-                -AccessControlType $rule.AccessControlType `
-                -FileSystemRights $rule.FileSystemRights `
-                -InheritanceFlags $rule.InheritanceFlags `
-                -PropagationFlags $rule.PropagationFlags
-            
-            if (-not $isAllowed) {
-                $rulesToRemove += $rule
-            }
+            # Add to removal list (we're removing all non-inherited permissions)
+            $rulesToRemove += $rule
         }
         
         # Remove unauthorized rules
@@ -231,37 +170,29 @@ function Remove-UnauthorizedPermissions {
 }
 
 try {
-    # Import the CSV file with allowed permissions
-    $allowedPermissions = Import-Csv -Path $CsvFile
+    Write-Host "Starting permission removal for: $FolderPath"
     
-    Write-Host "Imported $($allowedPermissions.Count) allowed permission entries from $CsvFile"
+    # Process the specified folder
+    Remove-NonInheritedPermissions `
+        -FolderPath $FolderPath `
+        -WhatIf $WhatIf `
+        -SkipSIDs $SkipSIDs `
+        -SkipUsers $SkipUsers
     
-    # Get all unique folder paths from the CSV
-    $uniqueFolders = $allowedPermissions | Select-Object -ExpandProperty FolderPath -Unique
-    
-    # Process each folder
-    foreach ($folder in $uniqueFolders) {
-        # Construct the target path
-        $folderName = Split-Path -Path $folder -Leaf
-        $targetPath = Join-Path -Path $TargetBasePath -ChildPath $folderName
+    # If recursive option is selected, process all subfolders
+    if ($Recursive) {
+        Write-Host "Processing subfolders recursively..."
+        $subFolders = Get-ChildItem -Path $FolderPath -Directory -Recurse
         
-        # Check if the target folder exists
-        if (-not (Test-Path -Path $targetPath)) {
-            Write-Warning "Target folder does not exist: $targetPath"
-            continue
+        foreach ($folder in $subFolders) {
+            Write-Host "Processing permissions for subfolder: $($folder.FullName)"
+            
+            Remove-NonInheritedPermissions `
+                -FolderPath $folder.FullName `
+                -WhatIf $WhatIf `
+                -SkipSIDs $SkipSIDs `
+                -SkipUsers $SkipUsers
         }
-        
-        Write-Host "Processing permissions for folder: $targetPath"
-        
-        # Remove unauthorized permissions
-        Remove-UnauthorizedPermissions `
-            -FolderPath $targetPath `
-            -AllowedPermissions $allowedPermissions `
-            -WhatIf $WhatIf `
-            -UseLocalPrincipals $UseLocalPrincipals `
-            -SkipSIDs $SkipSIDs `
-            -SkipUsers $SkipUsers `
-            -SkipInheritedPermissions $SkipInheritedPermissions
     }
     
     Write-Host "Permission removal completed."

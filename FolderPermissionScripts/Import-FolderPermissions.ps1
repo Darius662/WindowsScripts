@@ -22,7 +22,10 @@ param (
     [switch]$SkipUsers,
     
     [Parameter(Mandatory=$false)]
-    [switch]$SkipInheritedPermissions
+    [switch]$SkipInheritedPermissions,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$CreateMissingGroups
 )
 
 # Set default values for switch parameters
@@ -40,6 +43,10 @@ if (-not $PSBoundParameters.ContainsKey('SkipUsers')) {
 
 if (-not $PSBoundParameters.ContainsKey('SkipInheritedPermissions')) {
     $SkipInheritedPermissions = $true
+}
+
+if (-not $PSBoundParameters.ContainsKey('CreateMissingGroups')) {
+    $CreateMissingGroups = $true
 }
 
 # Check if the CSV file exists
@@ -135,6 +142,48 @@ function Get-AccountNameFromIdentityReference {
     
     # If no domain/computer prefix, return as is
     return $IdentityReference
+}
+
+# Function to check if a local group exists
+function Test-LocalGroupExists {
+    param (
+        [string]$GroupName
+    )
+    
+    try {
+        $group = Get-LocalGroup -Name $GroupName -ErrorAction SilentlyContinue
+        return ($null -ne $group)
+    }
+    catch {
+        return $false
+    }
+}
+
+# Function to create a local group if it doesn't exist
+function New-LocalGroupIfNotExists {
+    param (
+        [string]$GroupName,
+        [bool]$WhatIf
+    )
+    
+    if (-not (Test-LocalGroupExists -GroupName $GroupName)) {
+        if ($WhatIf) {
+            Write-Host "WhatIf: Would create local group: $GroupName" -ForegroundColor Cyan
+            return $true
+        } else {
+            try {
+                New-LocalGroup -Name $GroupName -ErrorAction Stop | Out-Null
+                Write-Host "Created local group: $GroupName" -ForegroundColor Green
+                return $true
+            }
+            catch {
+                Write-Warning "Failed to create local group '$GroupName': $_"
+                return $false
+            }
+        }
+    }
+    
+    return $true
 }
 
 # Function to check if a permission already exists as inherited
@@ -284,8 +333,43 @@ function Set-FolderPermission {
             )
         }
         catch [System.Security.Principal.IdentityNotMappedException] {
-            Write-Host "Skipping unmappable identity: $identityToUse (original: $IdentityReference) for folder: $targetPath" -ForegroundColor Yellow
-            return
+            # If CreateMissingGroups is enabled and this is likely a group, try to create it
+            $accountName = Get-AccountNameFromIdentityReference -IdentityReference $identityToUse
+            $isLikelyGroup = -not (Test-IsUserAccount -IdentityReference $accountName)
+            
+            if ($CreateMissingGroups -and $isLikelyGroup) {
+                Write-Host "Attempting to create missing group: $accountName" -ForegroundColor Cyan
+                $groupCreated = New-LocalGroupIfNotExists -GroupName $accountName -WhatIf $WhatIf
+                
+                if ($groupCreated -and -not $WhatIf) {
+                    # Try again with the newly created group
+                    try {
+                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                            $identityToUse,
+                            $fileSystemRights,
+                            $inheritanceFlags,
+                            $propagationFlags,
+                            $accessControlType
+                        )
+                    }
+                    catch {
+                        $exception = $_.Exception
+                        Write-Warning ("Error creating access rule for newly created group {0}: {1}" -f $identityToUse, $exception.Message)
+                        return
+                    }
+                } else {
+                    # If in WhatIf mode or group creation failed
+                    if ($WhatIf) {
+                        Write-Host "WhatIf: Would create access rule for new group $identityToUse" -ForegroundColor Cyan
+                    } else {
+                        Write-Host "Skipping unmappable identity after failed group creation: $identityToUse for folder: $targetPath" -ForegroundColor Yellow
+                    }
+                    return
+                }
+            } else {
+                Write-Host "Skipping unmappable identity: $identityToUse (original: $IdentityReference) for folder: $targetPath" -ForegroundColor Yellow
+                return
+            }
         }
         catch {
             Write-Warning "Error creating access rule for $identityToUse (original: $IdentityReference): $_"
@@ -316,6 +400,7 @@ function Set-FolderPermission {
                 }
             }
             catch [System.Security.Principal.IdentityNotMappedException] {
+                # This should rarely happen since we've already handled identity mapping above
                 Write-Host "Cannot apply permission: Identity '$identityToUse' could not be mapped on this system for folder: $targetPath" -ForegroundColor Yellow
             }
             catch {

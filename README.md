@@ -13,7 +13,7 @@ Scripts for managing and migrating folder permissions across Windows systems.
 
 - **Export-FolderPermissions.ps1** - Exports folder permissions to CSV format
 - **Import-FolderPermissions.ps1** - Imports and applies folder permissions from CSV
-- **Remove-FolderPermissions.ps1** - Removes permissions not listed in a CSV file
+- **Remove-FolderPermissions.ps1** - Removes all non-inherited permissions from folders
 
 
 ### 👥 [Users and Groups Scripts](./UsersAndGroupsScripts/)
@@ -98,13 +98,16 @@ $SecurePass = ConvertTo-SecureString "TempPass123!" -AsPlainText -Force
 .\UsersAndGroupsScripts\Import-UsersAndGroups.ps1 -InputPath "C:\Migration\users.csv" -DefaultPassword $SecurePass
 ```
 
-### Export and Import Folder Permissions
+### Export, Import, and Remove Folder Permissions
 ```powershell
 # Export permissions
 .\FolderPermissionScripts\Export-FolderPermissions.ps1 -FolderPath "C:\SharedData" -OutputPath "permissions.csv"
 
 # Import permissions
-.\FolderPermissionScripts\Import-FolderPermissions.ps1 -InputPath "permissions.csv"
+.\FolderPermissionScripts\Import-FolderPermissions.ps1 -CsvFile "permissions.csv" -TargetBasePath "D:\SharedData"
+
+# Remove all non-inherited permissions
+.\FolderPermissionScripts\Remove-FolderPermissions.ps1 -FolderPath "D:\SharedData" -Recursive -WhatIf
 ```
 
 ### Export and Import Shared Folders
