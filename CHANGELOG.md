@@ -14,6 +14,12 @@ All notable changes to the Windows Scripts Collection will be documented in this
   - Updated `Remove-FolderPermissions.ps1` to remove all non-inherited permissions without requiring a CSV file
   - Added `-Recursive` parameter to process subfolders
   - Simplified parameters and improved usability
+  
+### Fixed
+- **FolderPermissionScripts**:
+  - Fixed `Import-FolderPermissions.ps1` to properly handle empty paths in CSV files
+  - Added better validation and error handling for CSV import
+  - Improved path validation to prevent "empty string" errors
 
 ## [1.3.0] - 2025-10-06
 

@@ -250,6 +250,17 @@ function Set-FolderPermission {
         [bool]$SkipInheritedPermissions
     )
     
+    # Validate input paths
+    if ([string]::IsNullOrWhiteSpace($OriginalPath)) {
+        Write-Warning "Original path is empty or null"
+        return
+    }
+    
+    if ([string]::IsNullOrWhiteSpace($TargetBasePath)) {
+        Write-Warning "Target base path is empty or null"
+        return
+    }
+    
     # Determine the relative path from the original base path
     $originalBasePath = Split-Path -Path $OriginalPath -Parent
     $folderName = Split-Path -Path $OriginalPath -Leaf
@@ -257,6 +268,12 @@ function Set-FolderPermission {
     # If it's a root folder (no parent), use the folder name directly
     if ([string]::IsNullOrEmpty($folderName)) {
         $folderName = $originalBasePath
+    }
+    
+    # Validate folder name
+    if ([string]::IsNullOrWhiteSpace($folderName)) {
+        Write-Warning "Could not determine folder name from path: $OriginalPath"
+        return
     }
     
     # Construct the new target path
@@ -416,13 +433,40 @@ function Set-FolderPermission {
 }
 
 try {
-    # Import the CSV file
-    $permissions = Import-Csv -Path $CsvFile
-    
-    Write-Host "Imported $($permissions.Count) permission entries from $CsvFile"
+    # Import the CSV file with better error handling
+    try {
+        $permissions = Import-Csv -Path $CsvFile -ErrorAction Stop
+        
+        if ($null -eq $permissions -or $permissions.Count -eq 0) {
+            Write-Error "The CSV file is empty or contains no valid permission entries."
+            exit 1
+        }
+        
+        # Validate CSV structure
+        $requiredColumns = @('FolderPath', 'IdentityReference', 'AccessControlType', 'FileSystemRights', 'InheritanceFlags', 'PropagationFlags', 'IsInherited')
+        $firstRow = $permissions[0]
+        $missingColumns = $requiredColumns | Where-Object { -not $firstRow.PSObject.Properties.Name.Contains($_) }
+        
+        if ($missingColumns.Count -gt 0) {
+            Write-Error "CSV file is missing required columns: $($missingColumns -join ', ')"
+            exit 1
+        }
+        
+        Write-Host "Imported $($permissions.Count) permission entries from $CsvFile"
+    }
+    catch {
+        Write-Error "Failed to import CSV file: $($_.Exception.Message)"
+        exit 1
+    }
     
     # Process each permission entry
     foreach ($permission in $permissions) {
+        # Skip entries with empty folder paths
+        if ([string]::IsNullOrWhiteSpace($permission.FolderPath)) {
+            Write-Warning "Skipping entry with empty folder path"
+            continue
+        }
+        
         Write-Host "Processing permission for folder: $($permission.FolderPath)"
         
         Set-FolderPermission `

@@ -13,6 +13,11 @@ All notable changes to the Folder Permission Scripts will be documented in this 
 - Added `-Recursive` parameter to process subfolders
 - Simplified parameters and improved usability
 
+### Fixed
+- Fixed `Import-FolderPermissions.ps1` to properly handle empty paths in CSV files
+- Added better validation and error handling for CSV import
+- Improved path validation to prevent "empty string" errors
+
 ## [1.3.0] - 2025-10-06
 
 ### Added
