@@ -8,18 +8,23 @@ This project contains PowerShell scripts for managing folder permissions:
 
 ## Export-FolderPermissions.ps1
 
-This script exports the permissions of a specified folder and its immediate subfolders (not recursive) to a CSV file.
+This script exports the permissions of a specified folder and its subfolders (with depth control) to a CSV file.
 
 ### Usage
 
 ```powershell
+# Basic usage (unlimited depth)
 .\Export-FolderPermissions.ps1 -FolderPath "C:\Path\To\Folders" -OutputFile "C:\Path\To\Output.csv"
+
+# With depth limit (3 levels deep)
+.\Export-FolderPermissions.ps1 -FolderPath "C:\Path\To\Folders" -OutputFile "C:\Path\To\Output.csv" -Depth 3
 ```
 
 ### Parameters
 
 - `-FolderPath`: The path to the parent folder containing the folders whose permissions you want to export
 - `-OutputFile`: The path where the CSV file will be saved
+- `-Depth`: Maximum folder depth to scan (0=unlimited, 1=root only, 2=root+subfolders, etc.)
 
 ## Import-FolderPermissions.ps1
 

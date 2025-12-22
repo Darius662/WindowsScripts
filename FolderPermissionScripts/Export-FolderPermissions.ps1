@@ -1,13 +1,16 @@
 # Export-FolderPermissions.ps1
 # This script exports folder permissions to a CSV file
-# Usage: .\Export-FolderPermissions.ps1 -FolderPath "C:\Path\To\Folders" -OutputFile "C:\Path\To\Output.csv"
+# Usage: .\Export-FolderPermissions.ps1 -FolderPath "C:\Path\To\Folders" -OutputFile "C:\Path\To\Output.csv" [-Depth <int>]
 
 param (
     [Parameter(Mandatory=$true)]
     [string]$FolderPath,
     
     [Parameter(Mandatory=$true)]
-    [string]$OutputFile
+    [string]$OutputFile,
+    
+    [Parameter(Mandatory=$false)]
+    [int]$Depth = 0
 )
 
 # Check if the folder path exists
@@ -51,14 +54,31 @@ function Get-FolderPermissions {
     }
 }
 
-# Get all folders in the specified path (only top-level, not subfolders)
+# Function to get all folders recursively
+function Get-AllFolders {
+    param (
+        [string]$Path,
+        [int]$CurrentDepth,
+        [int]$MaxDepth
+    )
+    
+    $folders = @($Path)
+    
+    if ($MaxDepth -eq 0 -or $CurrentDepth -lt $MaxDepth) {
+        $subfolders = Get-ChildItem -Path $Path -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+        foreach ($subfolder in $subfolders) {
+            $folders += Get-AllFolders -Path $subfolder -CurrentDepth ($CurrentDepth + 1) -MaxDepth $MaxDepth
+        }
+    }
+    
+    return $folders
+}
+
+# Main script execution
 try {
-    $folders = Get-ChildItem -Path $FolderPath -Directory | Select-Object -ExpandProperty FullName
-    
-    # Add the root folder itself
-    $folders = @($FolderPath) + $folders
-    
-    Write-Host "Found $($folders.Count) folders to process."
+    # Get all folders with depth control
+    $folders = Get-AllFolders -Path $FolderPath -CurrentDepth 1 -MaxDepth $Depth
+    Write-Host "Found $($folders.Count) folders to process (Depth: $(if ($Depth -eq 0) {'unlimited'} else {$Depth}))"
     
     # Process each folder and collect permissions
     $allPermissions = @()

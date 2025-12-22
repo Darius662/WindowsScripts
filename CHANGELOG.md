@@ -2,6 +2,11 @@
 
 All notable changes to the Windows Scripts Collection will be documented in this file.
 
+## [1.5.1] - 2025-12-22
+
+### Added
+- Added depth control to FolderPermissionScripts/Export-FolderPermissions.ps1
+
 ## [1.4.0] - 2025-12-22
 
 ### Added

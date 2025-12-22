@@ -22,6 +22,15 @@ All notable changes to the Folder Permission Scripts will be documented in this 
 - Fixed group creation to properly handle manually updated computer prefixes in CSV files
 - Added support for respecting specified computer names when creating groups
 
+## [1.3.2] - 2025-12-22
+
+### Added
+- Added `-Depth` parameter to `Export-FolderPermissions.ps1` to control folder scanning depth
+- Added recursive folder scanning with depth control
+
+### Changed
+- Updated documentation for new depth parameter
+
 ## [1.3.0] - 2025-10-06
 
 ### Added
