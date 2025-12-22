@@ -28,6 +28,12 @@ Scripts for managing and migrating shared folders and their configurations.
 - **Export-SharedFolders.ps1** - Exports shared folders, paths, permissions, and configurations to CSV
 - **Import-SharedFolders.ps1** - Imports and recreates shared folders with complete permission restoration from CSV
 
+### 📂 [Folder Structure Scripts](./FolderStructureScripts/)
+Scripts for exporting and importing folder hierarchy structures.
+
+- **Export-FolderStructure.ps1** - Exports folder hierarchy to CSV with depth control
+- **Import-FolderStructure.ps1** - Creates folder structure from exported CSV
+
 ### ⏲️ [Task Scheduler Scripts](./TaskSchedulerScripts/)
 Scripts for migrating Windows Task Scheduler entries between computers.
 

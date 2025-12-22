@@ -2,6 +2,13 @@
 
 All notable changes to the Windows Scripts Collection will be documented in this file.
 
+## [1.4.0] - 2025-12-22
+
+### Added
+- **FolderStructureScripts**:
+  - Added Export-FolderStructure.ps1 for exporting folder hierarchy to CSV
+  - Added Import-FolderStructure.ps1 for recreating folder structure from CSV
+
 ## [1.3.1] - 2025-10-14
 
 ### Added
