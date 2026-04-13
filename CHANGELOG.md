@@ -2,6 +2,38 @@
 
 All notable changes to the Windows Scripts Collection will be documented in this file.
 
+## [1.6.0] - 2025-04-13
+
+### Added
+- **RunAs Scripts**:
+  - Added `RunAsUser.ps1` - Modern GUI application for running files and tools as different users
+  - Added `LaunchGUI.bat` - Simple launcher for the GUI application
+  - Added modular architecture with separate modules:
+    - `Modules/Config.ps1` - Configuration and recent files management
+    - `Modules/ProcessManager.ps1` - Process launching and smart elevation handling
+    - `Modules/UIComponents.ps1` - Modern UI components and styling
+  - Added quick tools access for 10 common Windows administrative tools
+  - Added smart elevation handling for admin and non-admin users
+  - Added real-time process tracking with auto-refresh
+  - Added recent files management (last 10 files)
+  - Added modern dark theme UI with contemporary design
+  - Added comprehensive security features with SecureString usage
+
+### Features
+- **Modern GUI Application** - Complete rewrite from command-line to graphical interface
+- **Smart Elevation Handling** - Two-tier approach: direct launch + PowerShell wrapper fallback
+- **Process Monitoring** - Real-time tracking with automatic cleanup of dead processes
+- **Quick Tools Integration** - One-click access to PowerShell, CMD, Registry Editor, MMC snap-ins, and more
+- **Security Best Practices** - Proper credential handling and secure password management
+- **Modular Design** - Clean, maintainable code structure
+
+### Technical Improvements
+- Resolved UAC elevation issues for both admin and non-admin target users
+- Fixed parameter conflicts and argument handling errors
+- Implemented proper working directory resolution
+- Added comprehensive error handling and user feedback
+- Enhanced security with SecureString implementation
+
 ## [1.5.1] - 2025-12-22
 
 ### Added

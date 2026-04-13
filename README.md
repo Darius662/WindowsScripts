@@ -40,23 +40,43 @@ Scripts for migrating Windows Task Scheduler entries between computers.
 - **Export-ScheduledTasks.ps1** - Exports user-created scheduled tasks and their configurations to CSV
 - **Import-ScheduledTasks.ps1** - Imports and recreates scheduled tasks from CSV with complete configuration
 
-### 🔒 [Firewall Rules Scripts](./FirewallRulesScripts/)
+### [Firewall Rules Scripts](./FirewallRulesScripts/)
 Scripts for exporting and importing Windows Firewall rules between computers.
 
 - **Export-FirewallRules.ps1** - Exports Windows Firewall rules with all properties to CSV
 - **Import-FirewallRules.ps1** - Imports and recreates firewall rules from CSV with complete configuration
 
-### 📒 [Registry Scripts](./RegistryScripts/)
+### [Registry Scripts](./RegistryScripts/)
 Scripts for exporting and importing registry settings between computers.
 
 - **Export-RegistrySettings.ps1** - Exports registry keys and values with all properties to CSV
 - **Import-RegistrySettings.ps1** - Imports and recreates registry settings from CSV with proper value types
 
-### ⚙️ [Services Scripts](./ServicesScripts/)
+### [Services Scripts](./ServicesScripts/)
 Scripts for exporting and importing Windows services configuration between computers.
 
 - **Export-WindowsServices.ps1** - Exports Windows services with all properties to CSV
 - **Import-WindowsServices.ps1** - Imports and recreates or updates services from CSV with complete configuration
+
+### [RunAs Scripts](./RunAs/)
+Scripts and GUI application for running applications as different users with advanced features.
+
+- **RunAsUser.ps1** - Modern GUI application for running files and tools as different users
+- **LaunchGUI.bat** - Simple launcher for the GUI application
+
+#### Key Features
+- **Modern Dark Theme GUI** - Contemporary design with intuitive interface
+- **Quick Tools Access** - One-click launch for 10 common Windows administrative tools
+- **Smart Elevation Handling** - Intelligent UAC management for admin and non-admin users
+- **Process Tracking** - Real-time monitoring of running processes with auto-refresh
+- **Recent Files Management** - Automatic tracking and quick access to frequently used files
+- **Modular Architecture** - Clean, maintainable code structure with separate modules
+- **Security Best Practices** - SecureString usage and proper credential handling
+
+#### Quick Tools Included
+- PowerShell, Command Prompt, Registry Editor
+- Computer Management, Local/Current User Certificates
+- Services, Event Viewer, Task Manager, Group Policy Editor
 
 ## Prerequisites
 
@@ -209,6 +229,7 @@ For issues, questions, or contributions:
 
 ## Version History
 
+- **v1.6** - Added RunAs Scripts with modern GUI application for running applications as different users
 - **v1.5** - Added Services Scripts for Windows services migration
 - **v1.4** - Added Registry Scripts for registry settings migration
 - **v1.3** - Added Firewall Rules Scripts for Windows Firewall migration
