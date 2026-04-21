@@ -2,6 +2,32 @@
 
 All notable changes to the Windows Scripts Collection will be documented in this file.
 
+## [1.7.0] - 2025-04-21
+
+### Added
+- **RunAs Remote Functionality**:
+  - Added remote computer support to RunAs GUI application
+  - Added `Modules/RemoteManager.ps1` - Remote connectivity module
+  - Added remote execution for all 10 administrative tools
+  - Added connection testing and validation for remote computers
+  - Added computer name format validation
+  - Added PowerShell remoting-based process launching
+  - Added comprehensive remote error handling
+
+### Features
+- **Remote Computer Execution** - Launch applications and tools on remote computers
+- **Connection Validation** - Test remote connectivity before execution
+- **Seamless Integration** - Toggle between local and remote execution modes
+- **Enhanced GUI** - New remote computer section with intuitive controls
+- **Security** - Secure credential transmission for remote operations
+
+### Technical Improvements
+- Implemented PowerShell remoting for remote process management
+- Added comprehensive remote connectivity testing
+- Enhanced error handling for remote scenarios
+- Updated GUI layout to accommodate remote features
+- Added remote-specific troubleshooting documentation
+
 ## [1.6.0] - 2025-04-13
 
 ### Added

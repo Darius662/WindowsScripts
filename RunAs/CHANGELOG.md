@@ -5,6 +5,50 @@ All notable changes to the RunAs project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-04-21
+
+### Added
+- **Remote Computer Support** - Execute applications and tools on remote computers:
+  - Remote execution checkbox and computer name input field
+  - Test connection button for connectivity validation
+  - Support for all quick tools on remote systems
+  - PowerShell remoting-based implementation
+- **RemoteManager Module** - New modular component for remote connectivity:
+  - `Test-RemoteComputer` - Validates remote computer connectivity
+  - `Start-RemoteProcessAsUser` - Launches processes on remote computers
+  - `Start-RemoteToolAsUser` - Executes quick tools remotely
+  - `Test-ComputerNameFormat` - Validates computer name/IP format
+  - `Test-WinRmEnabled` - Checks WinRM service availability
+- **Enhanced GUI Layout** - Updated interface to accommodate remote features:
+  - New "Remote Computer" section between file selection and credentials
+  - Increased form height to 850px for better spacing
+  - Updated status bar text to indicate remote capability
+- **Remote Quick Tools** - All 10 administrative tools now support remote execution:
+  - PowerShell, Command Prompt, Registry Editor
+  - Computer Management, Local/Current User Certificates
+  - Services, Event Viewer, Task Manager, Group Policy
+- **Connection Validation** - Comprehensive remote connectivity testing:
+  - Ping test for basic network connectivity
+  - PowerShell remoting session test
+  - Computer name format validation
+  - Detailed error messages for troubleshooting
+
+### Changed
+- **GUI Layout** - Reorganized sections to include remote functionality
+- **Tool Execution Logic** - Enhanced to support both local and remote modes
+- **Error Handling** - Added remote-specific error messages and validation
+- **User Experience** - Seamless switching between local and remote execution
+
+### Security
+- **Remote Credential Handling** - Secure credential transmission for remote execution
+- **Connection Testing** - Validates remote connectivity before execution
+- **Session Management** - Proper cleanup of PowerShell remoting sessions
+
+### Documentation
+- **Remote Usage Guide** - Complete documentation for remote execution setup
+- **Troubleshooting Section** - Common remote connectivity issues and solutions
+- **Requirements Section** - Updated with remote execution prerequisites
+
 ## [2.0.0] - 2025-04-13
 
 ### Added

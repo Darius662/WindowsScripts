@@ -7,6 +7,7 @@ Add-Type -AssemblyName System.Drawing
 . "$PSScriptRoot\Modules\Config.ps1"
 . "$PSScriptRoot\Modules\ProcessManager.ps1"
 . "$PSScriptRoot\Modules\UIComponents.ps1"
+. "$PSScriptRoot\Modules\RemoteManager.ps1"
 
 # File dialog function
 function Show-FileDialog {
@@ -135,9 +136,65 @@ function New-MainApplication {
     $browseButton.Add_Click({ Show-FileDialog })
     $fileGroup.Controls.Add($browseButton)
     
+    # Remote computer group
+    $remoteGroup = New-ModernGroupBox -Text "Remote Computer" -Width 780 -Height 80
+    $remoteGroup.Location = New-Object System.Drawing.Point(0, 145)
+    
+    $remoteCheckbox = New-Object System.Windows.Forms.CheckBox
+    $remoteCheckbox.Text = "Enable Remote Execution"
+    $remoteCheckbox.Location = New-Object System.Drawing.Point(15, 25)
+    $remoteCheckbox.Size = New-Object System.Drawing.Size(150, 25)
+    $remoteCheckbox.Add_CheckedChanged({
+        $global:ComputerNameTextBox.Enabled = $this.Checked
+        $global:TestConnectionButton.Enabled = $this.Checked
+        if (-not $this.Checked) {
+            $global:ComputerNameTextBox.Text = ""
+        }
+    })
+    $remoteGroup.Controls.Add($remoteCheckbox)
+    
+    $computerNameLabel = New-ModernLabel -Text "Computer Name:"
+    $computerNameLabel.Location = New-Object System.Drawing.Point(180, 25)
+    $computerNameLabel.Size = New-Object System.Drawing.Size(100, 25)
+    $remoteGroup.Controls.Add($computerNameLabel)
+    
+    $global:ComputerNameTextBox = New-ModernTextBox -Width 200 -Height 25
+    $global:ComputerNameTextBox.Location = New-Object System.Drawing.Point(285, 25)
+    $global:ComputerNameTextBox.Enabled = $false
+    $remoteGroup.Controls.Add($global:ComputerNameTextBox)
+    
+    $global:TestConnectionButton = New-ModernButton -Text "Test Connection" -Width 120 -Height 25
+    $global:TestConnectionButton.Location = New-Object System.Drawing.Point(495, 25)
+    $global:TestConnectionButton.Enabled = $false
+    $global:TestConnectionButton.Add_Click({
+        if ([string]::IsNullOrWhiteSpace($global:ComputerNameTextBox.Text)) {
+            [System.Windows.Forms.MessageBox]::Show("Please enter a computer name", "Error", "OK", "Error")
+            return
+        }
+        
+        if (-not (Test-ComputerNameFormat -ComputerName $global:ComputerNameTextBox.Text)) {
+            [System.Windows.Forms.MessageBox]::Show("Invalid computer name format", "Error", "OK", "Error")
+            return
+        }
+        
+        if ([string]::IsNullOrWhiteSpace($global:UsernameTextBox.Text) -or [string]::IsNullOrWhiteSpace($global:PasswordTextBox.Text)) {
+            [System.Windows.Forms.MessageBox]::Show("Please enter username and password to test connection", "Error", "OK", "Error")
+            return
+        }
+        
+        try {
+            $securePassword = ConvertTo-SecureString $global:PasswordTextBox.Text -AsPlainText -Force
+            Test-RemoteComputer -ComputerName $global:ComputerNameTextBox.Text -Username $global:UsernameTextBox.Text -Password $securePassword
+            [System.Windows.Forms.MessageBox]::Show("Remote connection successful!", "Success", "OK", "Information")
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("Connection test failed: $($_.Exception.Message)", "Error", "OK", "Error")
+        }
+    })
+    $remoteGroup.Controls.Add($global:TestConnectionButton)
+    
     # Credentials group
     $credGroup = New-ModernGroupBox -Text "Credentials" -Width 780 -Height 110
-    $credGroup.Location = New-Object System.Drawing.Point(0, 145)
+    $credGroup.Location = New-Object System.Drawing.Point(0, 240)
     
     $usernameLabel = New-ModernLabel -Text "Username:"
     $usernameLabel.Location = New-Object System.Drawing.Point(15, 30)
@@ -181,7 +238,22 @@ function New-MainApplication {
             $credential = New-Object System.Management.Automation.PSCredential($global:UsernameTextBox.Text, $securePassword)
             
             $filePaths = $global:FilePathTextBox.Text -split "`r`n|`n"
-            Start-ProcessAsUser -FilePaths $filePaths -Credential $credential
+            
+            # Check if remote execution is enabled
+            if ($remoteCheckbox.Checked -and -not [string]::IsNullOrWhiteSpace($global:ComputerNameTextBox.Text)) {
+                # Remote execution
+                foreach ($file in $filePaths) {
+                    $result = Start-RemoteProcessAsUser -ComputerName $global:ComputerNameTextBox.Text -Username $global:UsernameTextBox.Text -Password $securePassword -FilePath $file.Trim()
+                    if ($result.Success) {
+                        [System.Windows.Forms.MessageBox]::Show($result.Message, "Success", "OK", "Information")
+                    } else {
+                        [System.Windows.Forms.MessageBox]::Show($result.Message, "Error", "OK", "Error")
+                    }
+                }
+            } else {
+                # Local execution
+                Start-ProcessAsUser -FilePaths $filePaths -Credential $credential
+            }
             
             # Clear password for security
             $global:PasswordTextBox.Text = ""
@@ -193,7 +265,7 @@ function New-MainApplication {
     
     # Quick tools group
     $toolsGroup = New-ModernGroupBox -Text "Quick Tools" -Width 780 -Height 100
-    $toolsGroup.Location = New-Object System.Drawing.Point(0, 270)
+    $toolsGroup.Location = New-Object System.Drawing.Point(0, 365)
     
     # Create buttons for tools
     $commonTools = Get-CommonTools
@@ -205,8 +277,27 @@ function New-MainApplication {
         $button.Location = New-Object System.Drawing.Point($xPos, $yPos)
         
         $button.Add_Click({
+            if ([string]::IsNullOrWhiteSpace($global:UsernameTextBox.Text) -or [string]::IsNullOrWhiteSpace($global:PasswordTextBox.Text)) {
+                [System.Windows.Forms.MessageBox]::Show("Please enter username and password to run tools", "Error", "OK", "Error")
+                return
+            }
+            
             $securePassword = ConvertTo-SecureString $global:PasswordTextBox.Text -AsPlainText -Force
-            Start-ToolAsUser -ToolName $this.Text -Username $global:UsernameTextBox.Text -Password $securePassword
+            
+            # Check if remote execution is enabled
+            if ($remoteCheckbox.Checked -and -not [string]::IsNullOrWhiteSpace($global:ComputerNameTextBox.Text)) {
+                # Remote execution
+                $result = Start-RemoteToolAsUser -ComputerName $global:ComputerNameTextBox.Text -Username $global:UsernameTextBox.Text -Password $securePassword -ToolName $this.Text
+                if ($result.Success) {
+                    [System.Windows.Forms.MessageBox]::Show($result.Message, "Success", "OK", "Information")
+                } else {
+                    [System.Windows.Forms.MessageBox]::Show($result.Message, "Error", "OK", "Error")
+                }
+            } else {
+                # Local execution
+                Start-ToolAsUser -ToolName $this.Text -Username $global:UsernameTextBox.Text -Password $securePassword
+            }
+            
             Update-ProcessListView $global:ProcessListView $global:StatusLabel
         })
         $toolsGroup.Controls.Add($button)
@@ -215,7 +306,7 @@ function New-MainApplication {
     
     # Running processes group
     $processGroup = New-ModernGroupBox -Text "Running Processes" -Width 780 -Height 220
-    $processGroup.Location = New-Object System.Drawing.Point(0, 385)
+    $processGroup.Location = New-Object System.Drawing.Point(0, 480)
     
     $global:ProcessListView = New-ModernListView -Width 750 -Height 185
     $global:ProcessListView.Location = New-Object System.Drawing.Point(15, 30)
@@ -229,11 +320,12 @@ function New-MainApplication {
     $processGroup.Controls.Add($global:ProcessListView)
     
     # Status bar
-    $global:StatusLabel = New-ModernStatusLabel -Text "Ready - Enter credentials to launch applications as different user"
-    $global:StatusLabel.Location = New-Object System.Drawing.Point(0, 620)
+    $global:StatusLabel = New-ModernStatusLabel -Text "Ready - Enter credentials to launch applications as different user (local or remote)"
+    $global:StatusLabel.Location = New-Object System.Drawing.Point(0, 715)
     
     # Add controls to main panel
     $mainPanel.Controls.Add($fileGroup)
+    $mainPanel.Controls.Add($remoteGroup)
     $mainPanel.Controls.Add($credGroup)
     $mainPanel.Controls.Add($toolsGroup)
     $mainPanel.Controls.Add($processGroup)

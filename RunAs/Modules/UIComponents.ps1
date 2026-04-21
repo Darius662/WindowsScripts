@@ -124,7 +124,7 @@ function New-MainForm {
     param(
         [string]$Title = "Run As User GUI - Modern",
         [int]$Width = 850,
-        [int]$Height = 750
+        [int]$Height = 850
     )
     
     $form = New-Object System.Windows.Forms.Form

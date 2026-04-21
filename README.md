@@ -62,10 +62,11 @@ Scripts for exporting and importing Windows services configuration between compu
 Scripts and GUI application for running applications as different users with advanced features.
 
 - **RunAsUser.ps1** - Modern GUI application for running files and tools as different users
-- **LaunchGUI.bat** - Simple launcher for the GUI application
+- **LaunchGUI.bat** - Simple launcher for GUI application
 
 #### Key Features
 - **Modern Dark Theme GUI** - Contemporary design with intuitive interface
+- **Remote Computer Support** - Execute applications and tools on remote computers
 - **Quick Tools Access** - One-click launch for 10 common Windows administrative tools
 - **Smart Elevation Handling** - Intelligent UAC management for admin and non-admin users
 - **Process Tracking** - Real-time monitoring of running processes with auto-refresh
@@ -73,10 +74,22 @@ Scripts and GUI application for running applications as different users with adv
 - **Modular Architecture** - Clean, maintainable code structure with separate modules
 - **Security Best Practices** - SecureString usage and proper credential handling
 
+#### Remote Execution Features
+- **PowerShell Remoting** - Launch tools on remote computers using secure connections
+- **Connection Testing** - Validate remote connectivity before execution
+- **All Tools Supported** - Remote execution for all administrative tools
+- **Seamless Integration** - Toggle between local and remote modes
+
 #### Quick Tools Included
 - PowerShell, Command Prompt, Registry Editor
 - Computer Management, Local/Current User Certificates
 - Services, Event Viewer, Task Manager, Group Policy Editor
+
+#### Remote Requirements
+- **PowerShell Remoting** enabled on target computers
+- **Network connectivity** between computers
+- **Administrative credentials** on remote systems
+- **WinRM firewall rules** (port 5985)
 
 ## Prerequisites
 
