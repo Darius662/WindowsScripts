@@ -5,22 +5,48 @@
 $script:RunningProcesses = @{}
 
 # Define common tools with proper launch methods
+# RemoteMode values:
+#   MMCConnect    - tool supports /computer:NAME natively, launched locally
+#   ManualConnect - tool must be launched locally; user connects manually
+#   Domain        - manages domain resources remotely by design
+#   WinRM         - non-GUI tool; execute on remote host via PSSession
+#   None          - remote not supported for this tool
 $script:CommonTools = @{
-    "PowerShell" = @{Path = "powershell.exe"; Args = @()}
-    "Command Prompt" = @{Path = "cmd.exe"; Args = @()}
-    "Registry Editor" = @{Path = "regedit.exe"; Args = @()}
-    "Computer Management" = @{Path = "mmc.exe"; Args = @("compmgmt.msc")}
-    "Local Certificates" = @{Path = "mmc.exe"; Args = @("certlm.msc")}
-    "Current User Certificates" = @{Path = "mmc.exe"; Args = @("certmgr.msc")}
-    "Services" = @{Path = "mmc.exe"; Args = @("services.msc")}
-    "Event Viewer" = @{Path = "mmc.exe"; Args = @("eventvwr.msc")}
-    "Task Manager" = @{Path = "taskmgr.exe"; Args = @()}
-    "Group Policy" = @{Path = "gpedit.msc"; Args = @()}
+    "PowerShell"                = @{Path = "powershell.exe"; Args = @();               RemoteMode = "WinRM";        RemoteArgs = @()}
+    "Command Prompt"            = @{Path = "cmd.exe";        Args = @();               RemoteMode = "WinRM";        RemoteArgs = @()}
+    "Registry Editor"           = @{Path = "regedit.exe";   Args = @();               RemoteMode = "ManualConnect"; RemoteArgs = @()}
+    "Computer Management"       = @{Path = "mmc.exe";       Args = @("compmgmt.msc"); RemoteMode = "MMCConnect";   RemoteArgs = @("compmgmt.msc", "/computer:{0}")}
+    "Local Certificates"        = @{Path = "mmc.exe";       Args = @("certlm.msc");   RemoteMode = "None";         RemoteArgs = @()}
+    "Current User Certificates" = @{Path = "mmc.exe";       Args = @("certmgr.msc");  RemoteMode = "None";         RemoteArgs = @()}
+    "Services"                  = @{Path = "mmc.exe";       Args = @("services.msc"); RemoteMode = "MMCConnect";   RemoteArgs = @("services.msc",  "/computer:{0}")}
+    "Event Viewer"              = @{Path = "mmc.exe";       Args = @("eventvwr.msc"); RemoteMode = "MMCConnect";   RemoteArgs = @("eventvwr.msc",  "/computer:{0}")}
+    "Task Manager"              = @{Path = "taskmgr.exe";   Args = @();               RemoteMode = "None";         RemoteArgs = @()}
+    "Local Group Policy"        = @{Path = "gpedit.msc";    Args = @();               RemoteMode = "None";         RemoteArgs = @()}
+    "Group Policy Mgmt"         = @{Path = "gpmc.msc";      Args = @();               RemoteMode = "Domain";       RemoteArgs = @()}
 }
 
 # Get common tools definition
 function Get-CommonTools {
     return $script:CommonTools
+}
+
+function Start-ProcessViaCredentialShell {
+    param(
+        [System.Management.Automation.PSCredential]$Credential,
+        [string]$Command,
+        [string]$WorkingDirectory,
+        [bool]$KeepShellOpen = $false,
+        [System.Diagnostics.ProcessWindowStyle]$WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+    )
+
+    $psArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass")
+    if ($KeepShellOpen) {
+        $psArgs += "-NoExit"
+    }
+    $psArgs += @("-Command", $Command)
+
+    Write-Log "CREDENTIAL-SHELL  Command='$Command' KeepShellOpen=$KeepShellOpen WindowStyle='$WindowStyle' Args='$($psArgs -join ' ')'"
+    return Start-Process -FilePath "powershell.exe" -ArgumentList $psArgs -Credential $Credential -WorkingDirectory $WorkingDirectory -WindowStyle $WindowStyle -PassThru -ErrorAction Stop
 }
 
 # Run process with credentials
@@ -83,7 +109,7 @@ function Start-ToolAsUser {
     $toolArgs = $toolInfo.Args
     
     if ([string]::IsNullOrWhiteSpace($Username) -or $null -eq $Password) {
-        [System.Windows.Forms.MessageBox]::Show("Please enter username and password to run tools", "Error", "OK", "Error")
+        [System.Windows.Forms.MessageBox]::Show("Please enter username and password to run tools", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         return
     }
     
@@ -91,32 +117,34 @@ function Start-ToolAsUser {
         $credential = New-Object System.Management.Automation.PSCredential($Username, $Password)
         
         $argsDisplay = if ($toolArgs.Count -gt 0) { " $($toolArgs -join ' ')" } else { "" }
-        Write-Host "Starting $toolPath$argsDisplay as $($credential.UserName)..."
-        
-        # Smart elevation handling - try direct launch first, then PowerShell wrapper if needed
         $workingDir = "C:\Windows\System32"
+        Write-Log "START-TOOL  Tool='$ToolName'  Exe='$toolPath$argsDisplay'  User='$($credential.UserName)'  WorkingDir='$workingDir'"
+
         $process = $null
         
         try {
-            # Try direct launch first (for non-admin users)
+            Write-Log "START-TOOL  Attempt 1: direct Start-Process"
             if ($toolArgs.Count -gt 0) {
                 $process = Start-Process -FilePath $toolPath -ArgumentList $toolArgs -Credential $credential -WorkingDirectory $workingDir -PassThru -ErrorAction Stop
             } else {
                 $process = Start-Process -FilePath $toolPath -Credential $credential -WorkingDirectory $workingDir -PassThru -ErrorAction Stop
             }
+            Write-Log "START-TOOL  Direct launch OK  PID=$($process.Id)"
         } catch {
-            # If direct launch fails (elevation required), try PowerShell wrapper
+            Write-Log "START-TOOL  Direct launch failed: $($_.Exception.Message)" -Level WARN
             try {
-                Write-Host "Direct launch failed, trying PowerShell wrapper..."
+                Write-Log "START-TOOL  Attempt 2: PowerShell wrapper"
                 if ($toolArgs.Count -gt 0) {
                     $command = "& '$toolPath' $($toolArgs -join ' ')"
                 } else {
                     $command = "& '$toolPath'"
                 }
-                
-                $psArgs = @("-Command", $command, "-NoProfile", "-ExecutionPolicy", "Bypass")
-                $process = Start-Process -FilePath "powershell.exe" -ArgumentList $psArgs -Credential $credential -WorkingDirectory $workingDir -PassThru -ErrorAction Stop
+
+                $keepShellOpen = ($ToolName -eq "Registry Editor")
+                $process = Start-ProcessViaCredentialShell -Credential $credential -Command $command -WorkingDirectory $workingDir -KeepShellOpen:$keepShellOpen
+                Write-Log "START-TOOL  Wrapper launch OK  PID=$($process.Id)"
             } catch {
+                Write-Log "START-TOOL  Wrapper launch failed: $($_.Exception.Message)`n$($_.ScriptStackTrace)" -Level ERROR
                 throw $_
             }
         }
@@ -128,14 +156,17 @@ function Start-ToolAsUser {
             User = $credential.UserName
             StartTime = Get-Date
         }
-        
+
+        Write-Log "START-TOOL  SUCCESS  Tool=$ToolName  PID=$($process.Id)"
+        $successMessage = "Successfully started $ToolName as $($credential.UserName)"
         [System.Windows.Forms.MessageBox]::Show(
-            "Successfully started $ToolName as $($credential.UserName)",
+            $successMessage,
             "Success",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Information
         )
     } catch {
+        Write-Log "START-TOOL  FAILED  Tool=$ToolName  Error=$($_.Exception.Message)" -Level ERROR
         [System.Windows.Forms.MessageBox]::Show(
             "Failed to start $ToolName`: $($_.Exception.Message)",
             "Error",

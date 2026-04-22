@@ -137,7 +137,7 @@ function New-MainApplication {
     $fileGroup.Controls.Add($browseButton)
     
     # Remote computer group
-    $remoteGroup = New-ModernGroupBox -Text "Remote Computer" -Width 780 -Height 80
+    $remoteGroup = New-ModernGroupBox -Text "Remote Computer" -Width 780 -Height 105
     $remoteGroup.Location = New-Object System.Drawing.Point(0, 145)
     
     $remoteCheckbox = New-Object System.Windows.Forms.CheckBox
@@ -167,34 +167,41 @@ function New-MainApplication {
     $global:TestConnectionButton.Location = New-Object System.Drawing.Point(495, 25)
     $global:TestConnectionButton.Enabled = $false
     $global:TestConnectionButton.Add_Click({
+
         if ([string]::IsNullOrWhiteSpace($global:ComputerNameTextBox.Text)) {
-            [System.Windows.Forms.MessageBox]::Show("Please enter a computer name", "Error", "OK", "Error")
+            [System.Windows.Forms.MessageBox]::Show("Please enter a computer name", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
         
         if (-not (Test-ComputerNameFormat -ComputerName $global:ComputerNameTextBox.Text)) {
-            [System.Windows.Forms.MessageBox]::Show("Invalid computer name format", "Error", "OK", "Error")
+            [System.Windows.Forms.MessageBox]::Show("Invalid computer name format", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
         
         if ([string]::IsNullOrWhiteSpace($global:UsernameTextBox.Text) -or [string]::IsNullOrWhiteSpace($global:PasswordTextBox.Text)) {
-            [System.Windows.Forms.MessageBox]::Show("Please enter username and password to test connection", "Error", "OK", "Error")
+            [System.Windows.Forms.MessageBox]::Show("Please enter username and password to test connection", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
         
         try {
             $securePassword = ConvertTo-SecureString $global:PasswordTextBox.Text -AsPlainText -Force
             Test-RemoteComputer -ComputerName $global:ComputerNameTextBox.Text -Username $global:UsernameTextBox.Text -Password $securePassword
-            [System.Windows.Forms.MessageBox]::Show("Remote connection successful!", "Success", "OK", "Information")
+            [System.Windows.Forms.MessageBox]::Show("Remote connection successful!", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         } catch {
-            [System.Windows.Forms.MessageBox]::Show("Connection test failed: $($_.Exception.Message)", "Error", "OK", "Error")
+            [System.Windows.Forms.MessageBox]::Show("Connection test failed: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
     $remoteGroup.Controls.Add($global:TestConnectionButton)
-    
+
+    $remoteInfoLabel = New-ModernLabel -Text "MMC tools (Comp. Mgmt / Services / Event Viewer) connect natively.  Registry Editor: File > Connect Network Registry.  Group Policy Mgmt: domain GPOs.  PowerShell/CMD: WinRM."
+    $remoteInfoLabel.Location = New-Object System.Drawing.Point(15, 58)
+    $remoteInfoLabel.Size = New-Object System.Drawing.Size(750, 40)
+    $remoteInfoLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Italic)
+    $remoteGroup.Controls.Add($remoteInfoLabel)
+
     # Credentials group
     $credGroup = New-ModernGroupBox -Text "Credentials" -Width 780 -Height 110
-    $credGroup.Location = New-Object System.Drawing.Point(0, 240)
+    $credGroup.Location = New-Object System.Drawing.Point(0, 265)
     
     $usernameLabel = New-ModernLabel -Text "Username:"
     $usernameLabel.Location = New-Object System.Drawing.Point(15, 30)
@@ -219,17 +226,17 @@ function New-MainApplication {
     $runButton.Location = New-Object System.Drawing.Point(680, 30)
     $runButton.Add_Click({
         if ([string]::IsNullOrWhiteSpace($global:FilePathTextBox.Text)) {
-            [System.Windows.Forms.MessageBox]::Show("Please enter a file path", "Error", "OK", "Error")
+            [System.Windows.Forms.MessageBox]::Show("Please enter a file path", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
         
         if (-not (Test-FilePath -Path $global:FilePathTextBox.Text)) {
-            [System.Windows.Forms.MessageBox]::Show("One or more files do not exist", "Error", "OK", "Error")
+            [System.Windows.Forms.MessageBox]::Show("One or more files do not exist", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
         
         if ([string]::IsNullOrWhiteSpace($global:UsernameTextBox.Text) -or [string]::IsNullOrWhiteSpace($global:PasswordTextBox.Text)) {
-            [System.Windows.Forms.MessageBox]::Show("Please enter username and password", "Error", "OK", "Error")
+            [System.Windows.Forms.MessageBox]::Show("Please enter username and password", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
         
@@ -245,9 +252,9 @@ function New-MainApplication {
                 foreach ($file in $filePaths) {
                     $result = Start-RemoteProcessAsUser -ComputerName $global:ComputerNameTextBox.Text -Username $global:UsernameTextBox.Text -Password $securePassword -FilePath $file.Trim()
                     if ($result.Success) {
-                        [System.Windows.Forms.MessageBox]::Show($result.Message, "Success", "OK", "Information")
+                        [System.Windows.Forms.MessageBox]::Show($result.Message, "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
                     } else {
-                        [System.Windows.Forms.MessageBox]::Show($result.Message, "Error", "OK", "Error")
+                        [System.Windows.Forms.MessageBox]::Show($result.Message, "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                     }
                 }
             } else {
@@ -258,14 +265,14 @@ function New-MainApplication {
             # Clear password for security
             $global:PasswordTextBox.Text = ""
         } catch {
-            [System.Windows.Forms.MessageBox]::Show("Invalid credentials: $($_.Exception.Message)", "Error", "OK", "Error")
+            [System.Windows.Forms.MessageBox]::Show("Invalid credentials: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
     $credGroup.Controls.Add($runButton)
     
     # Quick tools group
     $toolsGroup = New-ModernGroupBox -Text "Quick Tools" -Width 780 -Height 100
-    $toolsGroup.Location = New-Object System.Drawing.Point(0, 365)
+    $toolsGroup.Location = New-Object System.Drawing.Point(0, 390)
     
     # Create buttons for tools
     $commonTools = Get-CommonTools
@@ -278,7 +285,7 @@ function New-MainApplication {
         
         $button.Add_Click({
             if ([string]::IsNullOrWhiteSpace($global:UsernameTextBox.Text) -or [string]::IsNullOrWhiteSpace($global:PasswordTextBox.Text)) {
-                [System.Windows.Forms.MessageBox]::Show("Please enter username and password to run tools", "Error", "OK", "Error")
+                [System.Windows.Forms.MessageBox]::Show("Please enter username and password to run tools", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                 return
             }
             
@@ -289,9 +296,9 @@ function New-MainApplication {
                 # Remote execution
                 $result = Start-RemoteToolAsUser -ComputerName $global:ComputerNameTextBox.Text -Username $global:UsernameTextBox.Text -Password $securePassword -ToolName $this.Text
                 if ($result.Success) {
-                    [System.Windows.Forms.MessageBox]::Show($result.Message, "Success", "OK", "Information")
+                    [System.Windows.Forms.MessageBox]::Show($result.Message, "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
                 } else {
-                    [System.Windows.Forms.MessageBox]::Show($result.Message, "Error", "OK", "Error")
+                    [System.Windows.Forms.MessageBox]::Show($result.Message, "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                 }
             } else {
                 # Local execution
@@ -306,7 +313,7 @@ function New-MainApplication {
     
     # Running processes group
     $processGroup = New-ModernGroupBox -Text "Running Processes" -Width 780 -Height 220
-    $processGroup.Location = New-Object System.Drawing.Point(0, 480)
+    $processGroup.Location = New-Object System.Drawing.Point(0, 505)
     
     $global:ProcessListView = New-ModernListView -Width 750 -Height 185
     $global:ProcessListView.Location = New-Object System.Drawing.Point(15, 30)
@@ -321,7 +328,7 @@ function New-MainApplication {
     
     # Status bar
     $global:StatusLabel = New-ModernStatusLabel -Text "Ready - Enter credentials to launch applications as different user (local or remote)"
-    $global:StatusLabel.Location = New-Object System.Drawing.Point(0, 715)
+    $global:StatusLabel.Location = New-Object System.Drawing.Point(0, 740)
     
     # Add controls to main panel
     $mainPanel.Controls.Add($fileGroup)
